@@ -1,0 +1,5 @@
+spring:
+  config:
+    name: lqx-ddd-app
+  profiles:
+    active: dev

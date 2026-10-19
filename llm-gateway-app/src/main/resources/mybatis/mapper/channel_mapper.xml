@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.qx.infrastructure.persistent.dao.ChannelMapper">
+
+    <resultMap id="ChannelMap" type="cn.qx.domain.channel.model.entity.Channel">
+        <id column="id" property="id"/>
+        <result column="name" property="name"/>
+        <result column="type" property="type"/>
+        <result column="base_url" property="baseUrl"/>
+        <result column="api_key" property="apiKey"/>
+        <result column="models" property="models"/>
+        <result column="status" property="status"/>
+        <result column="priority" property="priority"/>
+        <result column="weight" property="weight"/>
+        <result column="config" property="config"/>
+        <result column="model_mapping" property="modelMapping"/>
+        <result column="last_test_at" property="lastTestAt"/>
+        <result column="last_test_ok" property="lastTestOk"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <select id="queryById" parameterType="java.lang.String" resultMap="ChannelMap">
+        SELECT id, name, type, base_url, api_key, models, status, priority, weight,
+               config, model_mapping, last_test_at, last_test_ok, created_at, updated_at
+        FROM channels
+        WHERE id = #{id}
+    </select>
+
+    <insert id="insert" parameterType="cn.qx.domain.channel.model.entity.Channel">
+        INSERT INTO channels(id, name, type, base_url, api_key, models, status, priority, weight,
+                             config, model_mapping, created_at, updated_at)
+        VALUES (#{id}, #{name}, #{type}, #{baseUrl}, #{apiKey}, #{models}, #{status}, #{priority}, #{weight},
+                #{config}, #{modelMapping}, #{createdAt}, #{updatedAt})
+    </insert>
+
+    <update id="updateLastTest">
+        UPDATE channels
+        SET last_test_ok = #{ok}, last_test_at = #{lastTestAt}, updated_at = #{lastTestAt}
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById" parameterType="java.lang.String">
+        DELETE FROM channels WHERE id = #{id}
+    </delete>
+
+</mapper>
