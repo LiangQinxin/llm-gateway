@@ -80,6 +80,33 @@ public class DeepSeekAdaptorTest {
         assertEquals("HTTP 200", 200, result.getStatusCode());
         assertNotNull("响应应含 choices", result.getBody().getJSONArray("choices"));
         assertTrue("choices 不应为空", result.getBody().getJSONArray("choices").size() > 0);
+        assertNotNull("非流式响应应保留 raw 原始文本", result.getRaw());
+        assertTrue("raw 应包含 choices 原文", result.getRaw().contains("\"choices\""));
+    }
+
+    @Test
+    public void openai_compatible_and_anthropic_adaptors_are_self_contained() {
+        ChannelConfig config = config();
+        ILlmAdaptor openai = adaptors.get("openai");
+        ILlmAdaptor custom = adaptors.get("custom");
+        ILlmAdaptor anthropic = adaptors.get("anthropic");
+
+        assertTrue("openai 连通测试应成功", openai.test(config).isSuccess());
+        ForwardResult openaiResult = openai.forward(chatRequest(MODEL, "hi"), config);
+        assertEquals("openai 兼容透传应 200", 200, openaiResult.getStatusCode());
+        assertNotNull("openai 兼容透传应保留 raw", openaiResult.getRaw());
+
+        assertTrue("custom 连通测试应成功", custom.test(config).isSuccess());
+        ChannelConfig anthropicConfig = ChannelConfig.builder()
+                .baseUrl("http://127.0.0.1:8777")
+                .apiKey(API_KEY)
+                .models(List.of(MODEL))
+                .modelMapping(new JSONObject())
+                .extra(new JSONObject())
+                .timeoutSecs(60)
+                .build();
+        assertTrue("anthropic 应使用自身探测端点与请求头",
+                anthropic.test(anthropicConfig).isSuccess());
     }
 
     @Test
