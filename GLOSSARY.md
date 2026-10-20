@@ -17,8 +17,16 @@ _Avoid_: token、API 凭证、api_key（列名保留）
 _Avoid_: audit row、log entry
 
 **Proxy 域**:
-转发主链路的领域决策集合：路由计划（route_plan）、分发（dispatcher）、加权选 key（weighted_key）、单次尝试判定（attempt）、流监督（stream_supervisor）、执行编排（proxy）。HTTP 字节进出在 infrastructure，上游协议形状转换在渠道适配器（ADR-0006）。
-_Avoid_: core、转发模块
+转发主链路的编排层集合：入站解析、sanitize、identity 鉴权/配额、流监督（stream_supervisor）、单次尝试判定（attempt）、加权选 key（weighted_key，后续）、把结果绑到 ResponseBodyEmitter。**路由计划（route_plan）与渠道分发已下沉 channel 域（ADR-0009）**，不再是 proxy 域知识。HTTP 字节进出在 infrastructure，上游协议形状转换在渠道适配器（ADR-0006）。
+_Avoid_: core、转发模块、route_plan（已迁出）
+
+**IDispatchInvoker（转发门面）**:
+channel 域对 ProxyCase 暴露的唯一转发入口端口（ADR-0009）。ProxyCase 只调它，不感知渠道查询、model 映射、适配器 map 或流式分支。唯一实现是路由器 service：内部串联「全查启用渠道 → 按 model 匹配 → 采样 upstreamModel → 烘焙 body.model → 按 channel.type 路由到 ILlmAdaptor → 按 stream 分支执行 forward/forwardStream」。
+_Avoid_: dispatcher（保留给后续加权/重试编排）、router
+
+**DispatchResult（路由决策中间值）**:
+路由器在执行适配器之前产出的渠道域决策：`{ Channel channel, String upstreamModel, boolean success, String errorMessage }`。success=false 表示无渠道支持请求 model（404 model_not_found）；channel.type 无对应适配器属执行期失败（502 channel_type_unavailable）。
+_Avoid_: ChannelSelection（ADR-0007 旧名，已废弃）、DispatchResultVO（VO 后缀不属 domain 层）
 
 **Adaptor（适配器）**:
 渠道对外部 LLM 供应商的协议能力：统一 OpenAI 入站请求的透传、模型映射、鉴权头与端点选择，以及非 OpenAI 兼容上游（Claude Messages、Gemini）的协议转换。协议差异内聚于适配器，不设独立协议翻译模块（ADR-0006）。
