@@ -1,4 +1,4 @@
-package cn.qx.trigger.audit;
+package cn.qx.trigger.http;
 
 import cn.qx.api.response.Response;
 import cn.qx.api.response.Responses;
@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/admin/api/logs")
 public class RequestLogController {
 
+    /** 请求日志用例 */
     @Resource
     private RequestLogCase requestLogCase;
 

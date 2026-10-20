@@ -19,6 +19,7 @@ import java.util.List;
 @Service
 public class ApiKeyCase {
 
+    /** API Key 仓储端口 */
     @Resource
     private IApiKeyRepository apiKeyRepository;
 

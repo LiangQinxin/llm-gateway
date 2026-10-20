@@ -1,4 +1,4 @@
-package cn.qx.trigger.proxy;
+package cn.qx.trigger.gateway;
 
 import cn.qx.cases.proxy.ProxyCase;
 import cn.qx.cases.proxy.ProxyException;
@@ -21,9 +21,11 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter
 @RestController
 public class ProxyController {
 
+    /** 数据面代理用例 */
     @Resource
     private ProxyCase proxyCase;
 
+    /** 异步任务执行器（applicationTaskExecutor，流式转发用） */
     @Resource(name = "applicationTaskExecutor")
     private TaskExecutor taskExecutor;
 

@@ -17,9 +17,18 @@ import java.io.InputStream;
 @AllArgsConstructor
 public class ProxyResult {
 
+    /** HTTP 状态码 */
     private int statusCode;
+
+    /** 响应 Content-Type */
     private String contentType;
+
+    /** 非流式响应原始文本 */
     private String raw;
+
+    /** 流式响应字节流 */
     private InputStream stream;
+
+    /** 上游调用句柄（用于取消流式请求） */
     private Call cancel;
 }

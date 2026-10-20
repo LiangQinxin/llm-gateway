@@ -1,4 +1,4 @@
-package cn.qx.trigger.proxy;
+package cn.qx.trigger.gateway;
 
 import cn.qx.cases.channel.ChannelCase;
 import cn.qx.domain.channel.model.entity.Channel;
@@ -32,16 +32,22 @@ import static org.junit.Assert.assertTrue;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 public class ProxyControllerTest {
 
+    /** 上游基础 URL（含 /v1） */
     private static final String BASE_URL = "http://127.0.0.1:8777/v1";
+    /** 上游 API 密钥 */
     private static final String API_KEY = "sk-waliapi-04dc74ce989d458e848a2c1616bf5611";
+    /** 上游模型名 */
     private static final String MODEL = "deepseek-flash";
 
+    /** 随机注入的 HTTP 服务端口 */
     @LocalServerPort
     private int port;
 
+    /** 渠道用例 */
     @Resource
     private ChannelCase channelCase;
 
+    /** HTTP 测试客户端（连接超时 10 秒） */
     private final HttpClient client = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(10))
             .build();

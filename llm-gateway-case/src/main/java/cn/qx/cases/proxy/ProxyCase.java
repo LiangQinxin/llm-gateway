@@ -29,9 +29,13 @@ import java.util.List;
 @Service
 public class ProxyCase {
 
+    /** 非流式响应 Content-Type：application/json */
     private static final String JSON_CONTENT_TYPE = MediaType.APPLICATION_JSON_VALUE;
+
+    /** 流式（SSE）响应 Content-Type：text/event-stream;charset=UTF-8 */
     private static final String SSE_CONTENT_TYPE = "text/event-stream;charset=UTF-8";
 
+    /** 渠道分发调用端口 */
     @Resource
     private IDispatchInvoker dispatchInvoker;
 

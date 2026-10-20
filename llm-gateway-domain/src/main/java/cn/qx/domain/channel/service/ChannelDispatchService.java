@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
@@ -25,13 +26,18 @@ import java.util.concurrent.ThreadLocalRandom;
 @Service
 public class ChannelDispatchService implements IDispatchInvoker {
 
+    /** 渠道仓储（查询启用渠道，按优先级/权重排序返回） */
     private final IChannelRepository channelRepository;
-    private final Map<String, ILlmAdaptor> adaptors;
+
+    /** 协议适配器注册表：key=渠道类型，value=对应 LLM 适配器 */
+    private final Map<String, ILlmAdaptor> adaptors = new ConcurrentHashMap<>();
 
     public ChannelDispatchService(IChannelRepository channelRepository,
-                                  Map<String, ILlmAdaptor> adaptors) {
+                                  List<ILlmAdaptor> adaptors) {
         this.channelRepository = channelRepository;
-        this.adaptors = adaptors;
+        for (ILlmAdaptor adaptor : adaptors) {
+            this.adaptors.put(adaptor.channelType(), adaptor);
+        }
     }
 
     @Override

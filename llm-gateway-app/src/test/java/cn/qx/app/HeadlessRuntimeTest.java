@@ -20,9 +20,11 @@ import static org.junit.Assert.assertTrue;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 public class HeadlessRuntimeTest {
 
+    /** 随机注入的 HTTP 服务端口 */
     @LocalServerPort
     private int port;
 
+    /** Spring 环境配置 */
     @Resource
     private Environment environment;
 

@@ -31,13 +31,18 @@ import static org.junit.Assert.assertTrue;
 @SpringBootTest
 public class ChannelDispatchServiceTest {
 
+    /** 上游基础 URL（含 /v1） */
     private static final String BASE_URL = "http://127.0.0.1:8777/v1";
+    /** 上游 API 密钥 */
     private static final String API_KEY = "sk-waliapi-04dc74ce989d458e848a2c1616bf5611";
+    /** 上游模型名 */
     private static final String UPSTREAM_MODEL = "deepseek-flash";
 
+    /** 渠道路由分发器 */
     @Resource
     private IDispatchInvoker dispatchInvoker;
 
+    /** 渠道用例 */
     @Resource
     private ChannelCase channelCase;
 

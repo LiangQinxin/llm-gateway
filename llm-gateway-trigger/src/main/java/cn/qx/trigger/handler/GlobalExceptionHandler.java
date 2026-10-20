@@ -1,4 +1,4 @@
-package cn.qx.trigger.http;
+package cn.qx.trigger.handler;
 
 import cn.qx.api.response.Response;
 import cn.qx.types.enums.ResponseCode;

@@ -24,6 +24,7 @@ import java.util.concurrent.TimeUnit;
 @Component("anthropic")
 public class AnthropicAdaptor implements ILlmAdaptor {
 
+    /** Anthropic API 版本头缺省值 */
     private static final String DEFAULT_VERSION = "2023-06-01";
 
     @Override

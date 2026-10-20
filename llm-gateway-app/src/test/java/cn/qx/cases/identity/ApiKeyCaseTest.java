@@ -30,9 +30,11 @@ import static org.junit.Assert.assertTrue;
 @SpringBootTest
 public class ApiKeyCaseTest {
 
+    /** 时间格式：ISO-8601 带偏移（微秒精度） */
     private static final DateTimeFormatter TIME_FMT =
             DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSSSSXXX");
 
+    /** API 密钥用例 */
     @Resource
     private ApiKeyCase apiKeyCase;
 

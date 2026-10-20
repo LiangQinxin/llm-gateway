@@ -15,6 +15,7 @@ import java.util.List;
 @Repository
 public class RequestLogRepository implements IRequestLogRepository {
 
+    /** 请求日志表 Mapper */
     @Resource
     private RequestLogMapper requestLogMapper;
 

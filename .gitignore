@@ -37,5 +37,5 @@ build/
 ### Mac OS ###
 .DS_Store
 /.idea/
-/docs/adr/
 /docs/三表基础实现-设计计划.md
+/.scratch/

@@ -1,4 +1,4 @@
-package cn.qx.trigger.channel;
+package cn.qx.trigger.http;
 
 import cn.qx.api.dto.channel.ChannelRequest;
 import cn.qx.api.dto.common.ToggleRequest;
@@ -69,7 +69,7 @@ public class ChannelController {
     /**
      * 渠道连通性测试。
      *
-     * @param request 测试请求体（含渠道 ID）
+     * @param id 测试请求体（含渠道 ID）
      * @return 测试结果
      */
     @PostMapping("/{id}/test")

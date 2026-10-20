@@ -1,4 +1,4 @@
-package cn.qx.trigger.identity;
+package cn.qx.trigger.http;
 
 import cn.qx.api.dto.common.ToggleRequest;
 import cn.qx.api.dto.identity.ApiKeyRequest;
@@ -25,6 +25,7 @@ import java.util.List;
 @RequestMapping("/admin/api/keys")
 public class IdentityController {
 
+    /** API Key 用例 */
     @Resource
     private ApiKeyCase apiKeyCase;
 

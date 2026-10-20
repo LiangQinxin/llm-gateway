@@ -21,8 +21,10 @@ import java.util.List;
 @Service
 public class RequestLogCase {
 
+    /** 分页单页最大条数上限（缺省 200） */
     private static final int MAX_PAGE_SIZE = 200;
 
+    /** 请求日志仓储端口 */
     @Resource
     private IRequestLogRepository requestLogRepository;
 

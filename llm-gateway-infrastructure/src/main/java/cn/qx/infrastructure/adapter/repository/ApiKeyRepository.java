@@ -17,6 +17,7 @@ import java.util.List;
 @Repository
 public class ApiKeyRepository implements IApiKeyRepository {
 
+    /** API 密钥表 Mapper */
     @Resource
     private ApiKeyMapper apiKeyMapper;
 

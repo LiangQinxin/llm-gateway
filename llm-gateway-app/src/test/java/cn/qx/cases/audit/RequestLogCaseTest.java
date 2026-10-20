@@ -27,6 +27,7 @@ import static org.junit.Assert.assertTrue;
 @Transactional
 public class RequestLogCaseTest {
 
+    /** 请求日志用例 */
     @Resource
     private RequestLogCase requestLogCase;
 

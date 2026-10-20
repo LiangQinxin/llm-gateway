@@ -7,7 +7,9 @@ import cn.qx.types.exception.AppException;
  */
 public class ProxyException extends AppException {
 
+    /** HTTP 状态码（OpenAI 风格，如 400 / 404 / 502） */
     private final int statusCode;
+    /** OpenAI 错误类型（如 invalid_request_error / upstream_error） */
     private final String errorType;
 
     public ProxyException(int statusCode, String code, String errorType, String message) {

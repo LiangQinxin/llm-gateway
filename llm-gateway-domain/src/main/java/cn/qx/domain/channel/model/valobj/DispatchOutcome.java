@@ -14,9 +14,16 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class DispatchOutcome {
 
+    /** 是否已路由命中上游（true=已命中，false=未命中） */
     private boolean routed;
+
+    /** 未命中/失败原因描述 */
     private String errorMessage;
+
+    /** 非流式转发结果（与 streaming 二选一） */
     private ForwardResult unary;
+
+    /** 流式转发结果（与 unary 二选一） */
     private StreamResult streaming;
 
     public static DispatchOutcome notFound(String model) {

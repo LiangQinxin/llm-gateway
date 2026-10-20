@@ -36,9 +36,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Transactional
 public class AdminApiTest {
 
+    /** MockMvc 模拟 MVC 请求客户端 */
     @Autowired
     private MockMvc mockMvc;
 
+    /** 请求日志用例 */
     @Resource
     private RequestLogCase requestLogCase;
 
