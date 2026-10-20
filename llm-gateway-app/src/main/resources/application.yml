@@ -6,3 +6,8 @@ spring:
   mvc:
     async:
       request-timeout: 600000
+
+server:
+  tomcat:
+    threads:
+      max: 200
