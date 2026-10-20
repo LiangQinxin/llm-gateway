@@ -3,3 +3,6 @@ spring:
     name: lqx-ddd-app
   profiles:
     active: dev
+  mvc:
+    async:
+      request-timeout: 600000
