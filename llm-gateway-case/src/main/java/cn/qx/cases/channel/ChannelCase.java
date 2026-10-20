@@ -43,11 +43,7 @@ public class ChannelCase {
         if (channelRepository.getByName(channel.getName()) != null) {
             throw new AppException(ResponseCode.CONFLICT.getCode(), "渠道名称已存在: " + channel.getName());
         }
-        try {
-            getAdaptor(channel.getType());
-        } catch (IllegalArgumentException e) {
-            throw new AppException(ResponseCode.ILLEGAL_PARAMETER.getCode(), "不支持的渠道类型: " + channel.getType());
-        }
+        validateChannelType(channel.getType());
         String now = TimeUtils.now();
         channel.setId(isBlank(channel.getId()) ? TimeUtils.uuid() : channel.getId());
         channel.setStatus(channel.getStatus() == null ? 1 : channel.getStatus());
@@ -88,6 +84,7 @@ public class ChannelCase {
             throw new IllegalArgumentException("渠道 ID 不能为空");
         }
         Channel current = get(channel.getId());
+        validateChannelType(channel.getType());
         Channel sameName = channelRepository.getByName(channel.getName());
         if (sameName != null && !sameName.getId().equals(channel.getId())) {
             throw new AppException(ResponseCode.CONFLICT.getCode(), "渠道名称已存在: " + channel.getName());
@@ -149,5 +146,14 @@ public class ChannelCase {
             throw new IllegalArgumentException("不支持的渠道类型: " + channelType);
         }
         return adaptor;
+    }
+
+    private void validateChannelType(String channelType) {
+        try {
+            getAdaptor(channelType);
+        } catch (IllegalArgumentException e) {
+            throw new AppException(ResponseCode.ILLEGAL_PARAMETER.getCode(),
+                    "不支持的渠道类型: " + channelType);
+        }
     }
 }

@@ -32,7 +32,9 @@ public class RequestLogCase {
             throw new AppException(ResponseCode.ILLEGAL_PARAMETER.getCode(), "日志 model 不能为空");
         }
         requestLog.setId(isBlank(requestLog.getId()) ? TimeUtils.uuid() : requestLog.getId());
-        requestLog.setCreatedAt(isBlank(requestLog.getCreatedAt()) ? TimeUtils.now() : requestLog.getCreatedAt());
+        requestLog.setCreatedAt(isBlank(requestLog.getCreatedAt())
+                ? TimeUtils.now()
+                : TimeUtils.normalize(requestLog.getCreatedAt()));
         requestLog.setStream(requestLog.getStream() == null ? 0 : requestLog.getStream());
         requestLog.setIsRetry(requestLog.getIsRetry() == null ? 0 : requestLog.getIsRetry());
         requestLog.setPromptTokens(requestLog.getPromptTokens() == null ? 0L : requestLog.getPromptTokens());
@@ -53,6 +55,8 @@ public class RequestLogCase {
     @Transactional(readOnly = true)
     public RequestLogPageResult page(RequestLogQuery query) {
         RequestLogQuery normalized = normalize(query);
+        normalized.setCreatedFrom(TimeUtils.normalize(normalized.getCreatedFrom()));
+        normalized.setCreatedTo(TimeUtils.normalize(normalized.getCreatedTo()));
         long total = requestLogRepository.count(normalized);
         List<RequestLog> records = total == 0
                 ? List.of()
@@ -81,8 +85,9 @@ public class RequestLogCase {
         if (isBlank(createdAt)) {
             throw new AppException(ResponseCode.ILLEGAL_PARAMETER.getCode(), "清理时间阈值不能为空");
         }
-        int deleted = requestLogRepository.deleteBefore(createdAt);
-        log.info("已清理 {} 条请求日志, created_at < {}", deleted, createdAt);
+        String normalized = TimeUtils.normalize(createdAt);
+        int deleted = requestLogRepository.deleteBefore(normalized);
+        log.info("已清理 {} 条请求日志, created_at < {}", deleted, normalized);
         return deleted;
     }
 

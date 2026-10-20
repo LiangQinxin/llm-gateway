@@ -24,24 +24,20 @@ _Avoid_: core、转发模块、route_plan（已迁出）
 channel 域对 ProxyCase 暴露的唯一转发入口端口（ADR-0009）。ProxyCase 只调它，不感知渠道查询、model 映射、适配器 map 或流式分支。唯一实现是路由器 service：内部串联「全查启用渠道 → 按 model 匹配 → 采样 upstreamModel → 烘焙 body.model → 按 channel.type 路由到 ILlmAdaptor → 按 stream 分支执行 forward/forwardStream」。
 _Avoid_: dispatcher（保留给后续加权/重试编排）、router
 
-**DispatchResult（路由决策中间值）**:
-路由器在执行适配器之前产出的渠道域决策：`{ Channel channel, String upstreamModel, boolean success, String errorMessage }`。success=false 表示无渠道支持请求 model（404 model_not_found）；channel.type 无对应适配器属执行期失败（502 channel_type_unavailable）。
-_Avoid_: ChannelSelection（ADR-0007 旧名，已废弃）、DispatchResultVO（VO 后缀不属 domain 层）
+**DispatchOutcome（分发结果）**:
+channel 域路由器一次表达三种结果：未命中 `routed=false + errorMessage`、非流式 `ForwardResult`、流式 `StreamResult`（含 cancel 句柄）。未命中是正常业务分支，返回 404 model_not_found；channel.type 无适配器由启动自检拦截。
+_Avoid_: ChannelSelection（ADR-0007 旧名，已废弃）、DispatchResult、DispatchResultVO
 
 **Adaptor（适配器）**:
 渠道对外部 LLM 供应商的协议能力：统一 OpenAI 入站请求的透传、模型映射、鉴权头与端点选择，以及非 OpenAI 兼容上游（Claude Messages、Gemini）的协议转换。协议差异内聚于适配器，不设独立协议翻译模块（ADR-0006）。
 _Avoid_: codec、协议层（"protocol" 仅作 schema 中的协议标识列）
 
 **ModelMapping（模型映射）**:
-下游请求模型名与上游真实模型名的对应关系：字符串一对一映射；数组多目标按权重采样（Q8=②）。采样在 proxy 路由阶段执行一次并预烘焙进请求体（保证 日志 upstream_model = 实际请求模型 同源），适配器只应用映射结果、不自行采样。
+下游请求模型名与上游真实模型名的对应关系：字符串一对一映射；数组多目标按权重采样（Q8=②）。采样在 channel 路由阶段执行一次并预烘焙进请求体（保证 日志 upstream_model = 实际请求模型 同源），适配器只应用映射结果、不自行采样。
 _Avoid_: 模型改写、model_map
 
-**ChannelSelection（渠道选择结果）**:
-路由计划阶段按请求 model 从启用渠道中选出渠道的决策结果：选中渠道 + 上游模型名（含映射/采样后）+ 是否命中 + 未命中原因。取第一个命中（Q17，本期不做加权分配）。
-_Avoid_: route、路由结果
-
 **ProxyResult（转发结果）**:
-proxy 域编排输出的协议无关响应：状态码 + 非流式 JSON body 或流式字节流（SSE 透传）；上游状态码与错误体原样透传，数据面不包装（ADR-0007）。
+proxy 域编排输出的协议无关响应：状态码 + 非流式原始文本或流式字节流（SSE 透传）；上游状态码与错误体原样透传，数据面不包装（ADR-0007/0008）。
 _Avoid_: GatewayResponse、统一响应
 
 **StreamMode（流式模式）**:

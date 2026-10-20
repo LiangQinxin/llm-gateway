@@ -114,6 +114,33 @@ public class ProxyControllerTest {
         }
     }
 
+    @Test
+    public void pre_stream_connection_failure_falls_back_to_json() throws Exception {
+        Channel channel = channelCase.create(Channel.builder()
+                .name("测试-proxy-broken-" + UUID.randomUUID())
+                .type("deepseek")
+                .baseUrl("http://127.0.0.1:1/v1")
+                .apiKey("invalid")
+                .models("[\"broken-model\"]")
+                .priority(10000)
+                .weight(100)
+                .config("{}")
+                .modelMapping("{}")
+                .build());
+        try {
+            HttpResponse<String> response = sendString(
+                    "{\"model\":\"broken-model\",\"stream\":true,"
+                            + "\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+                    "text/event-stream");
+            log.info("开流前失败响应: status={}, body={}", response.statusCode(), response.body());
+            assertEquals(502, response.statusCode());
+            assertEquals("application/json", contentType(response));
+            assertTrue(response.body().contains("upstream_error"));
+        } finally {
+            channelCase.delete(channel.getId());
+        }
+    }
+
     private HttpResponse<String> sendString(String body, String accept) throws Exception {
         return client.send(request(body, accept), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
     }

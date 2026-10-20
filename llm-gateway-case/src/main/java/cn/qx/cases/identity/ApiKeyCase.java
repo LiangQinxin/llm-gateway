@@ -34,6 +34,7 @@ public class ApiKeyCase {
         apiKey.setAllowedChannels(defaultJson(apiKey.getAllowedChannels()));
         apiKey.setQuotaLimit(apiKey.getQuotaLimit() == null ? 0L : apiKey.getQuotaLimit());
         apiKey.setQuotaUsed(apiKey.getQuotaUsed() == null ? 0L : apiKey.getQuotaUsed());
+        apiKey.setExpiresAt(TimeUtils.normalize(apiKey.getExpiresAt()));
         apiKey.setCreatedAt(now);
         apiKey.setUpdatedAt(now);
         apiKeyRepository.insert(apiKey);
@@ -64,6 +65,9 @@ public class ApiKeyCase {
         apiKey.setAllowedChannels(defaultJson(apiKey.getAllowedChannels()));
         apiKey.setQuotaLimit(apiKey.getQuotaLimit() == null ? current.getQuotaLimit() : apiKey.getQuotaLimit());
         apiKey.setQuotaUsed(apiKey.getQuotaUsed() == null ? current.getQuotaUsed() : apiKey.getQuotaUsed());
+        apiKey.setExpiresAt(isBlank(apiKey.getExpiresAt())
+                ? current.getExpiresAt()
+                : TimeUtils.normalize(apiKey.getExpiresAt()));
         apiKey.setCreatedAt(current.getCreatedAt());
         apiKey.setUpdatedAt(TimeUtils.now());
         apiKeyRepository.update(apiKey);

@@ -1,6 +1,7 @@
 package cn.qx.domain.channel.service;
 
 import cn.qx.domain.channel.adapter.port.IDispatchInvoker;
+import cn.qx.domain.channel.adapter.port.IForwardingAdaptor;
 import cn.qx.domain.channel.adapter.port.ILlmAdaptor;
 import cn.qx.domain.channel.adapter.repository.IChannelRepository;
 import cn.qx.domain.channel.model.entity.Channel;
@@ -40,6 +41,13 @@ public class ChannelDispatchService implements IDispatchInvoker {
         }
         List<Channel> channels = channelRepository.listEnabledOrdered();
         for (Channel channel : channels) {
+            ILlmAdaptor adaptor = adaptors.get(channel.getType());
+            if (adaptor == null) {
+                throw new IllegalStateException("渠道类型无适配器: " + channel.getType());
+            }
+            if (!(adaptor instanceof IForwardingAdaptor)) {
+                continue;
+            }
             if (!supports(channel, request.getModel())) {
                 continue;
             }
@@ -51,10 +59,6 @@ public class ChannelDispatchService implements IDispatchInvoker {
             ChannelConfig config = channel.toChannelConfig();
             // 路由已完成一次性映射，适配器只透传最终模型，避免链式映射二次改写。
             config.setModelMapping(new JSONObject());
-            ILlmAdaptor adaptor = adaptors.get(channel.getType());
-            if (adaptor == null) {
-                throw new IllegalStateException("渠道类型无适配器: " + channel.getType());
-            }
             log.info("路由命中: requested={}, upstream={}, channel={}, stream={}",
                     request.getModel(), upstreamModel, channel.getId(), request.isStream());
             return request.isStream()

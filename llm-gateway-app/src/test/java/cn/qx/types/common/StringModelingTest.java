@@ -4,7 +4,11 @@ import cn.qx.domain.audit.model.entity.RequestLog;
 import cn.qx.domain.channel.model.entity.Channel;
 import cn.qx.domain.channel.model.valobj.ChannelConfig;
 import cn.qx.domain.identity.model.entity.ApiKey;
+import lombok.extern.slf4j.Slf4j;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.junit4.SpringRunner;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -13,22 +17,32 @@ import java.util.UUID;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 /**
  * String 时间/ID 与 JSON 列便捷解析建模测试。
  */
+@Slf4j
+@RunWith(SpringRunner.class)
+@SpringBootTest
 public class StringModelingTest {
 
     @Test
     public void time_and_id_follow_string_contract() {
         String now = TimeUtils.now();
+        log.info("生成时间: {}, 生成ID: {}", now, TimeUtils.uuid());
         assertEquals("ISO-8601 带偏移微秒格式应为 32 字符", 32, now.length());
         assertNotNull("时间应可被 OffsetDateTime 解析", OffsetDateTime.parse(now));
 
         String id = TimeUtils.uuid();
         assertEquals("UUID 应为标准 36 字符", 36, id.length());
         assertEquals("UUID 解析后应保持不变", id, UUID.fromString(id).toString());
+        assertEquals("Z 偏移应规范化为 +08:00 微秒格式",
+                "2026-10-20T12:00:00.000000+08:00",
+                TimeUtils.normalize("2026-10-20T04:00:00Z"));
+        assertThrows("无偏移时间应拒绝", IllegalArgumentException.class,
+                () -> TimeUtils.normalize("2026-10-20 12:00:00"));
     }
 
     @Test
@@ -38,6 +52,8 @@ public class StringModelingTest {
                 .modelMapping("{\"gpt-4o\":\"deepseek-flash\"}")
                 .config("{\"timeout_secs\":42}")
                 .build();
+        log.info("渠道 JSON 原始值: models={}, mapping={}, config={}",
+                channel.getModels(), channel.getModelMapping(), channel.getConfig());
         assertEquals(List.of("deepseek-flash", "deepseek-chat"), channel.activeModels());
         assertEquals("deepseek-flash", channel.activeModelMapping().getString("gpt-4o"));
         ChannelConfig config = channel.toChannelConfig();

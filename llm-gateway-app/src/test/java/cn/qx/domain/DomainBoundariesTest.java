@@ -1,6 +1,10 @@
 package cn.qx.domain;
 
+import lombok.extern.slf4j.Slf4j;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.junit4.SpringRunner;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -12,6 +16,9 @@ import static org.junit.Assert.assertTrue;
 /**
  * 十域边界与同构目录结构校验。
  */
+@Slf4j
+@RunWith(SpringRunner.class)
+@SpringBootTest
 public class DomainBoundariesTest {
 
     private static final List<String> DOMAINS = List.of(
@@ -24,6 +31,7 @@ public class DomainBoundariesTest {
         if (root.getFileName().toString().equals("llm-gateway-app")) {
             root = root.getParent();
         }
+        log.info("十域结构校验根目录: {}", root);
         for (String domain : DOMAINS) {
             Path base = root.resolve("llm-gateway-domain/src/main/java/cn/qx/domain").resolve(domain);
             assertTrue("domain 缺少 model: " + domain, Files.isDirectory(base.resolve("model")));

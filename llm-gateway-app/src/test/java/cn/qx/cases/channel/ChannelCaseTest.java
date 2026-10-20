@@ -133,7 +133,7 @@ public class ChannelCaseTest {
     @Test
     public void channel_crud_and_enabled_ordering() {
         Channel low = channelCase.create(Channel.builder()
-                .name("测试-低优先级")
+                .name("测试-低优先级-" + UUID.randomUUID())
                 .type("deepseek")
                 .baseUrl(BASE_URL)
                 .apiKey(API_KEY)
@@ -144,7 +144,7 @@ public class ChannelCaseTest {
                 .modelMapping("{}")
                 .build());
         Channel high = channelCase.create(Channel.builder()
-                .name("测试-高优先级")
+                .name("测试-高优先级-" + UUID.randomUUID())
                 .type("deepseek")
                 .baseUrl(BASE_URL)
                 .apiKey(API_KEY)
@@ -155,7 +155,7 @@ public class ChannelCaseTest {
                 .modelMapping("{}")
                 .build());
         Channel disabled = channelCase.create(Channel.builder()
-                .name("测试-停用")
+                .name("测试-停用-" + UUID.randomUUID())
                 .type("deepseek")
                 .baseUrl(BASE_URL)
                 .apiKey(API_KEY)
@@ -167,7 +167,7 @@ public class ChannelCaseTest {
                 .modelMapping("{}")
                 .build());
         Channel weighted = channelCase.create(Channel.builder()
-                .name("测试-同优先级高权重")
+                .name("测试-同优先级高权重-" + UUID.randomUUID())
                 .type("deepseek")
                 .baseUrl(BASE_URL)
                 .apiKey(API_KEY)
@@ -186,6 +186,11 @@ public class ChannelCaseTest {
             assertEquals("新渠道默认启用", Integer.valueOf(1), created.getStatus());
             assertNotNull("创建时间应自动生成", created.getCreatedAt());
 
+            Channel invalidUpdate = channelCase.get(low.getId());
+            invalidUpdate.setType("not-supported");
+            assertThrows("更新时也应拒绝未知渠道类型", AppException.class,
+                    () -> channelCase.update(invalidUpdate));
+
             created.setName("测试-已修改");
             created.setPriority(200);
             Channel updated = channelCase.update(created);
@@ -202,7 +207,7 @@ public class ChannelCaseTest {
 
             assertThrows("重复名称应拒绝", AppException.class,
                     () -> channelCase.create(Channel.builder()
-                            .name("测试-同优先级高权重")
+                            .name(weighted.getName())
                             .type("deepseek")
                             .baseUrl(BASE_URL)
                             .apiKey(API_KEY)
@@ -224,6 +229,7 @@ public class ChannelCaseTest {
             assertThrows("删除后查询应报不存在", IllegalArgumentException.class, () -> channelCase.get(high.getId()));
         } finally {
             channelCase.delete(low.getId());
+            channelCase.delete(high.getId());
             channelCase.delete(disabled.getId());
             channelCase.delete(weighted.getId());
         }

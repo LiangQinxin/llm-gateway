@@ -43,7 +43,7 @@ public class ProxyController {
                 proxyCase.writeError(e, emitter, response);
             } catch (Exception e) {
                 log.error("数据面转发异常", e);
-                emitter.completeWithError(e);
+                proxyCase.writeUpstreamFailure(emitter, response, e);
             }
         });
         return emitter;

@@ -133,6 +133,16 @@ public class ProxyCase {
         sendText(emitter, errorBody(exception.getInfo(), exception.getErrorType(), exception.getCode()));
     }
 
+    /** 尚未发送任何字节时的系统失败，回退为 OpenAI 风格 JSON。 */
+    public void writeUpstreamFailure(ResponseBodyEmitter emitter,
+                                     HttpServletResponse response,
+                                     Throwable error) {
+        log.warn("数据面上游失败，回退 JSON: {}", error.getMessage());
+        response.setStatus(502);
+        response.setContentType(JSON_CONTENT_TYPE);
+        sendText(emitter, errorBody("上游请求失败", "upstream_error", "upstream_error"));
+    }
+
     private static void sendText(ResponseBodyEmitter emitter, String text) {
         try {
             emitter.send((text == null ? "" : text).getBytes(StandardCharsets.UTF_8));

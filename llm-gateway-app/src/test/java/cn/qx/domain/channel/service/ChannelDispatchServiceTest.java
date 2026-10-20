@@ -145,6 +145,29 @@ public class ChannelDispatchServiceTest {
         }
     }
 
+    @Test
+    public void probe_only_anthropic_channel_is_not_routed() {
+        String model = "anthropic-only-" + UUID.randomUUID();
+        Channel channel = channelCase.create(Channel.builder()
+                .name("测试-dispatch-anthropic-" + UUID.randomUUID())
+                .type("anthropic")
+                .baseUrl("http://127.0.0.1:8777")
+                .apiKey(API_KEY)
+                .models("[\"" + model + "\"]")
+                .priority(10000)
+                .weight(100)
+                .config("{}")
+                .modelMapping("{}")
+                .build());
+        try {
+            DispatchOutcome outcome = dispatchInvoker.invoke(request(model, false, "anthropic"));
+            assertFalse("仅探测能力适配器不应进入数据面", outcome.isRouted());
+            assertNotNull(outcome.getErrorMessage());
+        } finally {
+            channelCase.delete(channel.getId());
+        }
+    }
+
     private static ProxyRequest request(String model, boolean stream, String content) {
         JSONObject body = new JSONObject();
         body.put("model", model);
