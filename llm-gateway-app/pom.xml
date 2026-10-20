@@ -105,6 +105,18 @@
             <groupId>cn.qx</groupId>
             <artifactId>llm-gateway-case</artifactId>
         </dependency>
+        <dependency>
+            <groupId>cn.qx</groupId>
+            <artifactId>llm-gateway-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>cn.qx</groupId>
+            <artifactId>llm-gateway-domain</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>cn.qx</groupId>
+            <artifactId>llm-gateway-types</artifactId>
+        </dependency>
     </dependencies>
 
     <build>
