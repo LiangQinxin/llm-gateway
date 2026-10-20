@@ -4,6 +4,8 @@ import cn.qx.domain.channel.model.entity.Channel;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.util.List;
+
 /**
  * 渠道表 Mapper（基础版三表，ADR-0005）。
  * <p>实体即 PO（ADR-0004：PO 与实体同构免转换层），SQL 见 channel_mapper.xml。
@@ -19,8 +21,25 @@ public interface ChannelMapper {
      */
     Channel queryById(@Param("id") String id);
 
+    /** 按名称查询渠道。 */
+    Channel queryByName(@Param("name") String name);
+
+    /** 查询全部渠道。 */
+    List<Channel> queryAll();
+
+    /** 查询启用渠道并按路由顺序排序。 */
+    List<Channel> queryEnabledOrdered();
+
     /** 新增渠道 */
     void insert(Channel channel);
+
+    /** 更新渠道全部配置。 */
+    int update(Channel channel);
+
+    /** 更新启用状态。 */
+    int updateStatus(@Param("id") String id,
+                     @Param("status") Integer status,
+                     @Param("updatedAt") String updatedAt);
 
     /**
      * 回写连通性测试结果。
@@ -36,5 +55,5 @@ public interface ChannelMapper {
      *
      * @param id 渠道 ID
      */
-    void deleteById(@Param("id") String id);
+    int deleteById(@Param("id") String id);
 }

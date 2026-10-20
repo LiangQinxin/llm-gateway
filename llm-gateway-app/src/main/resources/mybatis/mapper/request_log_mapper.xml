@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.qx.infrastructure.persistent.dao.RequestLogMapper">
+
+    <resultMap id="RequestLogMap" type="cn.qx.domain.audit.model.entity.RequestLog">
+        <id column="id" property="id"/>
+        <result column="seq" property="seq"/>
+        <result column="api_key_id" property="apiKeyId"/>
+        <result column="api_key_name" property="apiKeyName"/>
+        <result column="channel_id" property="channelId"/>
+        <result column="channel_name" property="channelName"/>
+        <result column="model" property="model"/>
+        <result column="upstream_model" property="upstreamModel"/>
+        <result column="mode" property="mode"/>
+        <result column="protocol_type" property="protocolType"/>
+        <result column="stream" property="stream"/>
+        <result column="is_retry" property="isRetry"/>
+        <result column="status_code" property="statusCode"/>
+        <result column="prompt_tokens" property="promptTokens"/>
+        <result column="completion_tokens" property="completionTokens"/>
+        <result column="total_tokens" property="totalTokens"/>
+        <result column="duration_ms" property="durationMs"/>
+        <result column="risk_level" property="riskLevel"/>
+        <result column="risk_score" property="riskScore"/>
+        <result column="risk_summary" property="riskSummary"/>
+        <result column="security_action" property="securityAction"/>
+        <result column="sanitized" property="sanitized"/>
+        <result column="blocked_reason" property="blockedReason"/>
+        <result column="client_ip" property="clientIp"/>
+        <result column="error_message" property="errorMessage"/>
+        <result column="request_body" property="requestBody"/>
+        <result column="response_choices" property="responseChoices"/>
+        <result column="trace_id" property="traceId"/>
+        <result column="created_at" property="createdAt"/>
+    </resultMap>
+
+    <sql id="columns">
+        id, seq, api_key_id, api_key_name, channel_id, channel_name, model, upstream_model,
+        mode, protocol_type, `stream`, is_retry, status_code, prompt_tokens, completion_tokens,
+        total_tokens, duration_ms, risk_level, risk_score, risk_summary, security_action,
+        sanitized, blocked_reason, client_ip, error_message, request_body, response_choices,
+        trace_id, created_at
+    </sql>
+
+    <sql id="queryWhere">
+        <where>
+            <if test="q.model != null and q.model != ''">AND model = #{q.model}</if>
+            <if test="q.apiKeyId != null and q.apiKeyId != ''">AND api_key_id = #{q.apiKeyId}</if>
+            <if test="q.channelId != null and q.channelId != ''">AND channel_id = #{q.channelId}</if>
+            <if test="q.statusCode != null">AND status_code = #{q.statusCode}</if>
+            <if test="q.createdFrom != null and q.createdFrom != ''">AND created_at &gt;= #{q.createdFrom}</if>
+            <if test="q.createdTo != null and q.createdTo != ''">AND created_at &lt;= #{q.createdTo}</if>
+        </where>
+    </sql>
+
+    <insert id="insert" parameterType="cn.qx.domain.audit.model.entity.RequestLog"
+            useGeneratedKeys="true" keyProperty="seq" keyColumn="seq">
+        INSERT INTO request_logs(
+            id, api_key_id, api_key_name, channel_id, channel_name, model, upstream_model,
+            mode, protocol_type, `stream`, is_retry, status_code, prompt_tokens, completion_tokens,
+            total_tokens, duration_ms, risk_level, risk_score, risk_summary, security_action,
+            sanitized, blocked_reason, client_ip, error_message, request_body, response_choices,
+            trace_id, created_at
+        )
+        VALUES (
+            #{id}, #{apiKeyId}, #{apiKeyName}, #{channelId}, #{channelName}, #{model}, #{upstreamModel},
+            #{mode}, #{protocolType}, #{stream}, #{isRetry}, #{statusCode}, #{promptTokens}, #{completionTokens},
+            #{totalTokens}, #{durationMs}, #{riskLevel}, #{riskScore}, #{riskSummary}, #{securityAction},
+            #{sanitized}, #{blockedReason}, #{clientIp}, #{errorMessage}, #{requestBody}, #{responseChoices},
+            #{traceId}, #{createdAt}
+        )
+    </insert>
+
+    <select id="queryById" resultMap="RequestLogMap">
+        SELECT <include refid="columns"/> FROM request_logs WHERE id = #{id}
+    </select>
+
+    <select id="count" resultType="long">
+        SELECT COUNT(*) FROM request_logs
+        <include refid="queryWhere"/>
+    </select>
+
+    <select id="queryPage" resultMap="RequestLogMap">
+        SELECT <include refid="columns"/>
+        FROM request_logs
+        <include refid="queryWhere"/>
+        ORDER BY seq DESC
+        LIMIT #{q.size} OFFSET #{q.offset}
+    </select>
+
+    <delete id="deleteById">
+        DELETE FROM request_logs WHERE id = #{id}
+    </delete>
+
+    <delete id="deleteBefore">
+        DELETE FROM request_logs WHERE created_at &lt; #{createdAt}
+    </delete>
+
+    <delete id="clearAll">
+        DELETE FROM request_logs
+    </delete>
+
+</mapper>

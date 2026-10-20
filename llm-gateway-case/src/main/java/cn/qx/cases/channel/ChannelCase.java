@@ -6,13 +6,15 @@ import cn.qx.domain.channel.adapter.repository.IChannelRepository;
 import cn.qx.domain.channel.model.entity.Channel;
 import cn.qx.domain.channel.model.valobj.ChannelConfig;
 import cn.qx.domain.channel.model.valobj.TestResult;
+import cn.qx.types.common.TimeUtils;
+import cn.qx.types.enums.ResponseCode;
+import cn.qx.types.exception.AppException;
 import com.alibaba.fastjson2.JSON;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import jakarta.annotation.Resource;
-import java.time.OffsetDateTime;
-import java.time.format.DateTimeFormatter;
+import java.util.List;
 
 /**
  * 渠道用例——管理面渠道操作编排。
@@ -29,6 +31,86 @@ public class ChannelCase {
     /** 渠道适配器注册表端口 */
     @Resource
     private IChannelAdaptorRegistry adaptorRegistry;
+
+    /** 新建渠道。ID、时间与缺省配置由用例生成。 */
+    public Channel create(Channel channel) {
+        if (channel == null) {
+            throw new IllegalArgumentException("渠道不能为空");
+        }
+        if (isBlank(channel.getName()) || isBlank(channel.getType())) {
+            throw new IllegalArgumentException("渠道名称和类型不能为空");
+        }
+        if (channelRepository.getByName(channel.getName()) != null) {
+            throw new AppException(ResponseCode.CONFLICT.getCode(), "渠道名称已存在: " + channel.getName());
+        }
+        try {
+            adaptorRegistry.getAdaptor(channel.getType());
+        } catch (IllegalArgumentException e) {
+            throw new AppException(ResponseCode.ILLEGAL_PARAMETER.getCode(), "不支持的渠道类型: " + channel.getType());
+        }
+        String now = TimeUtils.now();
+        channel.setId(isBlank(channel.getId()) ? TimeUtils.uuid() : channel.getId());
+        channel.setStatus(channel.getStatus() == null ? 1 : channel.getStatus());
+        channel.setPriority(channel.getPriority() == null ? 0 : channel.getPriority());
+        channel.setWeight(channel.getWeight() == null ? 1 : channel.getWeight());
+        channel.setModels(defaultJson(channel.getModels(), "[]"));
+        channel.setConfig(defaultJson(channel.getConfig(), "{}"));
+        channel.setModelMapping(defaultJson(channel.getModelMapping(), "{}"));
+        channel.setCreatedAt(now);
+        channel.setUpdatedAt(now);
+        channelRepository.insert(channel);
+        log.info("渠道已创建: {}", JSON.toJSONString(channel));
+        return channel;
+    }
+
+    /** 查询全部渠道。 */
+    public List<Channel> list() {
+        return channelRepository.listAll();
+    }
+
+    /** 查询启用渠道并按路由顺序排序。 */
+    public List<Channel> listEnabledOrdered() {
+        return channelRepository.listEnabledOrdered();
+    }
+
+    /** 查询渠道详情。 */
+    public Channel get(String id) {
+        Channel channel = channelRepository.getById(id);
+        if (channel == null) {
+            throw new IllegalArgumentException("渠道不存在: " + id);
+        }
+        return channel;
+    }
+
+    /** 更新渠道全部配置。 */
+    public Channel update(Channel channel) {
+        if (channel == null || isBlank(channel.getId())) {
+            throw new IllegalArgumentException("渠道 ID 不能为空");
+        }
+        Channel current = get(channel.getId());
+        Channel sameName = channelRepository.getByName(channel.getName());
+        if (sameName != null && !sameName.getId().equals(channel.getId())) {
+            throw new AppException(ResponseCode.CONFLICT.getCode(), "渠道名称已存在: " + channel.getName());
+        }
+        channel.setCreatedAt(current.getCreatedAt());
+        channel.setStatus(channel.getStatus() == null ? current.getStatus() : channel.getStatus());
+        channel.setUpdatedAt(TimeUtils.now());
+        channelRepository.update(channel);
+        log.info("渠道已更新: {}", JSON.toJSONString(channel));
+        return channel;
+    }
+
+    /** 启用或停用渠道。 */
+    public Channel toggle(String id, boolean enabled) {
+        get(id);
+        channelRepository.updateStatus(id, enabled ? 1 : 0, TimeUtils.now());
+        return get(id);
+    }
+
+    /** 删除渠道；不存在视为幂等成功。 */
+    public void delete(String id) {
+        channelRepository.deleteById(id);
+    }
 
     /**
      * 渠道连通性测试（真实上游端点）。
@@ -49,10 +131,15 @@ public class ChannelCase {
         return result;
     }
 
-    /** 时间格式：ISO-8601 带偏移（毫秒精度，适配 varchar(32) 列宽） */
-    private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSXXX");
-
     private String now() {
-        return OffsetDateTime.now().format(TIME_FMT);
+        return TimeUtils.now();
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.isBlank();
+    }
+
+    private static String defaultJson(String value, String fallback) {
+        return isBlank(value) ? fallback : value;
     }
 }

@@ -6,6 +6,7 @@ import cn.qx.infrastructure.persistent.dao.ChannelMapper;
 import org.springframework.stereotype.Repository;
 
 import jakarta.annotation.Resource;
+import java.util.List;
 
 /**
  * 渠道仓储实现——MyBatis 读写 channels 表。
@@ -23,6 +24,21 @@ public class ChannelRepository implements IChannelRepository {
     }
 
     @Override
+    public Channel getByName(String name) {
+        return channelMapper.queryByName(name);
+    }
+
+    @Override
+    public List<Channel> listAll() {
+        return channelMapper.queryAll();
+    }
+
+    @Override
+    public List<Channel> listEnabledOrdered() {
+        return channelMapper.queryEnabledOrdered();
+    }
+
+    @Override
     public void updateLastTest(String id, boolean ok, String lastTestAt) {
         channelMapper.updateLastTest(id, ok ? 1 : 0, lastTestAt);
     }
@@ -33,7 +49,17 @@ public class ChannelRepository implements IChannelRepository {
     }
 
     @Override
-    public void deleteById(String id) {
-        channelMapper.deleteById(id);
+    public int update(Channel channel) {
+        return channelMapper.update(channel);
+    }
+
+    @Override
+    public int updateStatus(String id, Integer status, String updatedAt) {
+        return channelMapper.updateStatus(id, status, updatedAt);
+    }
+
+    @Override
+    public int deleteById(String id) {
+        return channelMapper.deleteById(id);
     }
 }

@@ -3,6 +3,7 @@ package cn.qx.cases.channel;
 import cn.qx.domain.channel.adapter.repository.IChannelRepository;
 import cn.qx.domain.channel.model.entity.Channel;
 import cn.qx.domain.channel.model.valobj.TestResult;
+import cn.qx.types.exception.AppException;
 import com.alibaba.fastjson2.JSON;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
@@ -13,8 +14,11 @@ import org.springframework.test.context.junit4.SpringRunner;
 
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.UUID;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
@@ -81,5 +85,147 @@ public class ChannelCaseTest {
         assertThrows("渠道不存在时应抛 IllegalArgumentException",
                 IllegalArgumentException.class,
                 () -> channelCase.testChannel("not-exist-" + UUID.randomUUID()));
+    }
+
+    @Test
+    public void connectivity_probe_matrix_by_channel_type() {
+        Channel openai = channelCase.create(Channel.builder()
+                .name("测试-openai探针-" + UUID.randomUUID())
+                .type("openai")
+                .baseUrl(BASE_URL)
+                .apiKey(API_KEY)
+                .models("[\"deepseek-flash\"]")
+                .config("{}")
+                .modelMapping("{}")
+                .build());
+        Channel custom = channelCase.create(Channel.builder()
+                .name("测试-custom探针-" + UUID.randomUUID())
+                .type("custom")
+                .baseUrl(BASE_URL)
+                .apiKey(API_KEY)
+                .models("[\"deepseek-flash\"]")
+                .config("{}")
+                .modelMapping("{}")
+                .build());
+        Channel anthropic = channelCase.create(Channel.builder()
+                .name("测试-anthropic探针-" + UUID.randomUUID())
+                .type("anthropic")
+                .baseUrl("http://127.0.0.1:8777")
+                .apiKey(API_KEY)
+                .models("[\"deepseek-flash\"]")
+                .config("{}")
+                .modelMapping("{}")
+                .build());
+        try {
+            assertTrue("openai 应命中 /models",
+                    channelCase.testChannel(openai.getId()).isSuccess());
+            assertTrue("custom 应命中 /models",
+                    channelCase.testChannel(custom.getId()).isSuccess());
+            assertTrue("anthropic 应命中 /v1/models 且带 x-api-key",
+                    channelCase.testChannel(anthropic.getId()).isSuccess());
+        } finally {
+            channelCase.delete(openai.getId());
+            channelCase.delete(custom.getId());
+            channelCase.delete(anthropic.getId());
+        }
+    }
+
+    @Test
+    public void channel_crud_and_enabled_ordering() {
+        Channel low = channelCase.create(Channel.builder()
+                .name("测试-低优先级")
+                .type("deepseek")
+                .baseUrl(BASE_URL)
+                .apiKey(API_KEY)
+                .models("[\"deepseek-flash\"]")
+                .priority(1)
+                .weight(10)
+                .config("{}")
+                .modelMapping("{}")
+                .build());
+        Channel high = channelCase.create(Channel.builder()
+                .name("测试-高优先级")
+                .type("deepseek")
+                .baseUrl(BASE_URL)
+                .apiKey(API_KEY)
+                .models("[\"deepseek-flash\"]")
+                .priority(100)
+                .weight(1)
+                .config("{}")
+                .modelMapping("{}")
+                .build());
+        Channel disabled = channelCase.create(Channel.builder()
+                .name("测试-停用")
+                .type("deepseek")
+                .baseUrl(BASE_URL)
+                .apiKey(API_KEY)
+                .models("[\"deepseek-flash\"]")
+                .status(0)
+                .priority(999)
+                .weight(1)
+                .config("{}")
+                .modelMapping("{}")
+                .build());
+        Channel weighted = channelCase.create(Channel.builder()
+                .name("测试-同优先级高权重")
+                .type("deepseek")
+                .baseUrl(BASE_URL)
+                .apiKey(API_KEY)
+                .models("[\"deepseek-flash\"]")
+                .priority(100)
+                .weight(20)
+                .config("{}")
+                .modelMapping("{}")
+                .build());
+
+        log.info("创建渠道: low={}, high={}, disabled={}, weighted={}",
+                low.getId(), high.getId(), disabled.getId(), weighted.getId());
+        try {
+            Channel created = channelCase.get(low.getId());
+            assertNotNull("新渠道应可查询", created);
+            assertEquals("新渠道默认启用", Integer.valueOf(1), created.getStatus());
+            assertNotNull("创建时间应自动生成", created.getCreatedAt());
+
+            created.setName("测试-已修改");
+            created.setPriority(200);
+            Channel updated = channelCase.update(created);
+            assertEquals("名称应更新", "测试-已修改", channelCase.get(low.getId()).getName());
+            assertEquals("优先级应更新", Integer.valueOf(200), updated.getPriority());
+
+            List<Channel> enabled = channelCase.listEnabledOrdered();
+            List<String> enabledIds = enabled.stream().map(Channel::getId).toList();
+            log.info("启用渠道排序: {}", enabledIds);
+            assertTrue("修改后的渠道应排在启用列表首位", enabledIds.indexOf(low.getId()) < enabledIds.indexOf(high.getId()));
+            assertTrue("同优先级应按 weight DESC 排序",
+                    enabledIds.indexOf(weighted.getId()) < enabledIds.indexOf(high.getId()));
+            assertTrue("停用渠道不应出现在路由列表", !enabledIds.contains(disabled.getId()));
+
+            assertThrows("重复名称应拒绝", AppException.class,
+                    () -> channelCase.create(Channel.builder()
+                            .name("测试-同优先级高权重")
+                            .type("deepseek")
+                            .baseUrl(BASE_URL)
+                            .apiKey(API_KEY)
+                            .build()));
+            assertThrows("未知渠道类型应拒绝", AppException.class,
+                    () -> channelCase.create(Channel.builder()
+                            .name("测试-非法类型-" + UUID.randomUUID())
+                            .type("not-supported")
+                            .baseUrl(BASE_URL)
+                            .apiKey(API_KEY)
+                            .build()));
+
+            Channel toggled = channelCase.toggle(low.getId(), false);
+            assertEquals("停用状态应回写", Integer.valueOf(0), toggled.getStatus());
+            assertTrue("停用后不应出现在路由列表", !channelCase.listEnabledOrdered().stream()
+                    .map(Channel::getId).toList().contains(low.getId()));
+
+            channelCase.delete(high.getId());
+            assertThrows("删除后查询应报不存在", IllegalArgumentException.class, () -> channelCase.get(high.getId()));
+        } finally {
+            channelCase.delete(low.getId());
+            channelCase.delete(disabled.getId());
+            channelCase.delete(weighted.getId());
+        }
     }
 }

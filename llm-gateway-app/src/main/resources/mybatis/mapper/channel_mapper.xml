@@ -27,12 +27,57 @@
         WHERE id = #{id}
     </select>
 
+    <select id="queryByName" resultMap="ChannelMap">
+        SELECT id, name, type, base_url, api_key, models, status, priority, weight,
+               config, model_mapping, last_test_at, last_test_ok, created_at, updated_at
+        FROM channels
+        WHERE name = #{name}
+        LIMIT 1
+    </select>
+
+    <select id="queryAll" resultMap="ChannelMap">
+        SELECT id, name, type, base_url, api_key, models, status, priority, weight,
+               config, model_mapping, last_test_at, last_test_ok, created_at, updated_at
+        FROM channels
+        ORDER BY created_at DESC, id DESC
+    </select>
+
+    <select id="queryEnabledOrdered" resultMap="ChannelMap">
+        SELECT id, name, type, base_url, api_key, models, status, priority, weight,
+               config, model_mapping, last_test_at, last_test_ok, created_at, updated_at
+        FROM channels
+        WHERE status = 1
+        ORDER BY priority DESC, weight DESC, created_at ASC
+    </select>
+
     <insert id="insert" parameterType="cn.qx.domain.channel.model.entity.Channel">
         INSERT INTO channels(id, name, type, base_url, api_key, models, status, priority, weight,
                              config, model_mapping, created_at, updated_at)
         VALUES (#{id}, #{name}, #{type}, #{baseUrl}, #{apiKey}, #{models}, #{status}, #{priority}, #{weight},
                 #{config}, #{modelMapping}, #{createdAt}, #{updatedAt})
     </insert>
+
+    <update id="update" parameterType="cn.qx.domain.channel.model.entity.Channel">
+        UPDATE channels
+        SET name = #{name},
+            type = #{type},
+            base_url = #{baseUrl},
+            api_key = #{apiKey},
+            models = #{models},
+            status = #{status},
+            priority = #{priority},
+            weight = #{weight},
+            config = #{config},
+            model_mapping = #{modelMapping},
+            updated_at = #{updatedAt}
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateStatus">
+        UPDATE channels
+        SET status = #{status}, updated_at = #{updatedAt}
+        WHERE id = #{id}
+    </update>
 
     <update id="updateLastTest">
         UPDATE channels

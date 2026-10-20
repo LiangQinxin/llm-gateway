@@ -46,7 +46,7 @@ public class Channel {
     /** 状态：1=启用，0=停用 */
     private Integer status;
 
-    /** 优先级（数值越小优先级越高） */
+    /** 优先级（数值越大优先级越高；路由按 priority DESC, weight DESC 排序） */
     private Integer priority;
 
     /** 权重（同优先级内按权重分发） */

@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.qx.infrastructure.persistent.dao.ApiKeyMapper">
+
+    <resultMap id="ApiKeyMap" type="cn.qx.domain.identity.model.entity.ApiKey">
+        <id column="id" property="id"/>
+        <result column="name" property="name"/>
+        <result column="key" property="key"/>
+        <result column="status" property="status"/>
+        <result column="allowed_models" property="allowedModels"/>
+        <result column="allowed_channels" property="allowedChannels"/>
+        <result column="quota_limit" property="quotaLimit"/>
+        <result column="quota_used" property="quotaUsed"/>
+        <result column="expires_at" property="expiresAt"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <sql id="columns">
+        id, name, `key`, status, allowed_models, allowed_channels,
+        quota_limit, quota_used, expires_at, created_at, updated_at
+    </sql>
+
+    <select id="queryById" resultMap="ApiKeyMap">
+        SELECT <include refid="columns"/> FROM api_keys WHERE id = #{id}
+    </select>
+
+    <select id="queryAll" resultMap="ApiKeyMap">
+        SELECT <include refid="columns"/> FROM api_keys ORDER BY created_at DESC, id DESC
+    </select>
+
+    <select id="queryAuthenticatable" resultMap="ApiKeyMap">
+        SELECT <include refid="columns"/>
+        FROM api_keys
+        WHERE BINARY `key` = BINARY #{key}
+          AND status = 1
+          AND (expires_at IS NULL OR expires_at = '' OR expires_at &gt; #{now})
+        LIMIT 1
+    </select>
+
+    <insert id="insert" parameterType="cn.qx.domain.identity.model.entity.ApiKey">
+        INSERT INTO api_keys(id, name, `key`, status, allowed_models, allowed_channels,
+                             quota_limit, quota_used, expires_at, created_at, updated_at)
+        VALUES (#{id}, #{name}, #{key}, #{status}, #{allowedModels}, #{allowedChannels},
+                #{quotaLimit}, #{quotaUsed}, #{expiresAt}, #{createdAt}, #{updatedAt})
+    </insert>
+
+    <update id="update" parameterType="cn.qx.domain.identity.model.entity.ApiKey">
+        UPDATE api_keys
+        SET name = #{name},
+            `key` = #{key},
+            status = #{status},
+            allowed_models = #{allowedModels},
+            allowed_channels = #{allowedChannels},
+            quota_limit = #{quotaLimit},
+            quota_used = #{quotaUsed},
+            expires_at = #{expiresAt},
+            updated_at = #{updatedAt}
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateStatus">
+        UPDATE api_keys SET status = #{status}, updated_at = #{updatedAt} WHERE id = #{id}
+    </update>
+
+    <update id="recordUsage">
+        UPDATE api_keys
+        SET quota_used = CASE
+                WHEN quota_limit &gt; 0 THEN LEAST(COALESCE(quota_used, 0) + #{delta}, quota_limit)
+                ELSE COALESCE(quota_used, 0) + #{delta}
+            END,
+            updated_at = #{updatedAt}
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM api_keys WHERE id = #{id}
+    </delete>
+
+</mapper>
