@@ -7,7 +7,7 @@ import java.util.List;
 /**
  * OpenAI 官方渠道适配器。
  */
-@Component
+@Component("openai")
 public class OpenAiAdaptor extends OpenAICompatibleAdaptor {
 
     @Override

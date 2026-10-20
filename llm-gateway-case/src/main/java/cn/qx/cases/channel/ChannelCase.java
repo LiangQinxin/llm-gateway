@@ -1,6 +1,5 @@
 package cn.qx.cases.channel;
 
-import cn.qx.domain.channel.adapter.port.IChannelAdaptorRegistry;
 import cn.qx.domain.channel.adapter.port.ILlmAdaptor;
 import cn.qx.domain.channel.adapter.repository.IChannelRepository;
 import cn.qx.domain.channel.model.entity.Channel;
@@ -15,6 +14,7 @@ import org.springframework.stereotype.Service;
 
 import jakarta.annotation.Resource;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 渠道用例——管理面渠道操作编排。
@@ -28,9 +28,9 @@ public class ChannelCase {
     @Resource
     private IChannelRepository channelRepository;
 
-    /** 渠道适配器注册表端口 */
+    /** 按渠道类型索引的适配器表。 */
     @Resource
-    private IChannelAdaptorRegistry adaptorRegistry;
+    private Map<String, ILlmAdaptor> adaptors;
 
     /** 新建渠道。ID、时间与缺省配置由用例生成。 */
     public Channel create(Channel channel) {
@@ -44,7 +44,7 @@ public class ChannelCase {
             throw new AppException(ResponseCode.CONFLICT.getCode(), "渠道名称已存在: " + channel.getName());
         }
         try {
-            adaptorRegistry.getAdaptor(channel.getType());
+            getAdaptor(channel.getType());
         } catch (IllegalArgumentException e) {
             throw new AppException(ResponseCode.ILLEGAL_PARAMETER.getCode(), "不支持的渠道类型: " + channel.getType());
         }
@@ -124,7 +124,7 @@ public class ChannelCase {
             throw new IllegalArgumentException("渠道不存在: " + id);
         }
         ChannelConfig config = channel.toChannelConfig();
-        ILlmAdaptor adaptor = adaptorRegistry.getAdaptor(channel.getType());
+        ILlmAdaptor adaptor = getAdaptor(channel.getType());
         TestResult result = adaptor.test(config);
         channelRepository.updateLastTest(id, result.isSuccess(), now());
         log.info("渠道连通性测试完成: id={}, result={}", id, JSON.toJSONString(result));
@@ -141,5 +141,13 @@ public class ChannelCase {
 
     private static String defaultJson(String value, String fallback) {
         return isBlank(value) ? fallback : value;
+    }
+
+    private ILlmAdaptor getAdaptor(String channelType) {
+        ILlmAdaptor adaptor = adaptors.get(channelType);
+        if (adaptor == null) {
+            throw new IllegalArgumentException("不支持的渠道类型: " + channelType);
+        }
+        return adaptor;
     }
 }

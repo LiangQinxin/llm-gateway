@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import okhttp3.Call;
 
 import java.io.InputStream;
 
@@ -22,4 +23,7 @@ public class StreamResult {
 
     /** 上游响应体字节流（SSE） */
     private InputStream body;
+
+    /** 上游调用取消句柄；客户端断连时取消。 */
+    private Call cancel;
 }

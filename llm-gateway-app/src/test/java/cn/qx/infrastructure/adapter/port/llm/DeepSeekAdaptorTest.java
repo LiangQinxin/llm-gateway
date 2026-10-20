@@ -1,6 +1,5 @@
 package cn.qx.infrastructure.adapter.port.llm;
 
-import cn.qx.domain.channel.adapter.port.IChannelAdaptorRegistry;
 import cn.qx.domain.channel.adapter.port.ILlmAdaptor;
 import cn.qx.domain.channel.model.valobj.ChannelConfig;
 import cn.qx.domain.channel.model.valobj.ForwardResult;
@@ -20,6 +19,7 @@ import org.springframework.test.context.junit4.SpringRunner;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 
 import static org.junit.Assert.assertEquals;
@@ -45,9 +45,9 @@ public class DeepSeekAdaptorTest {
     /** 上游模型名 */
     private static final String MODEL = "deepseek-flash";
 
-    /** 适配器注册表 */
+    /** 按渠道类型索引的适配器表。 */
     @Resource
-    private IChannelAdaptorRegistry registry;
+    private Map<String, ILlmAdaptor> adaptors;
 
     /** 构造测试用渠道配置 */
     private ChannelConfig config() {
@@ -63,7 +63,7 @@ public class DeepSeekAdaptorTest {
 
     @Test
     public void test_channel_connectivity() {
-        ILlmAdaptor adaptor = registry.getAdaptor("deepseek");
+        ILlmAdaptor adaptor = adaptors.get("deepseek");
         log.info("适配器: type={}, defaultBaseUrl={}, defaultModels={}",
                 adaptor.channelType(), adaptor.defaultBaseUrl(), adaptor.defaultModels());
         TestResult result = adaptor.test(config());
@@ -73,7 +73,7 @@ public class DeepSeekAdaptorTest {
 
     @Test
     public void forward_chat_completions() {
-        ILlmAdaptor adaptor = registry.getAdaptor("deepseek");
+        ILlmAdaptor adaptor = adaptors.get("deepseek");
         ForwardResult result = adaptor.forward(chatRequest(MODEL, "你好，请用一句话介绍自己"), config());
         log.info("转发结果: status={}, usage={}, body={}",
                 result.getStatusCode(), result.getUsage(), result.getBody());
@@ -85,7 +85,7 @@ public class DeepSeekAdaptorTest {
     @Test
     public void forward_with_string_model_mapping() {
         // 字符串映射：下游请求 gpt-4o → 上游改写为 deepseek-flash
-        ILlmAdaptor adaptor = registry.getAdaptor("deepseek");
+        ILlmAdaptor adaptor = adaptors.get("deepseek");
         JSONObject mapping = new JSONObject();
         mapping.put("gpt-4o", MODEL);
 
@@ -104,7 +104,7 @@ public class DeepSeekAdaptorTest {
     @Test
     public void forward_with_array_model_mapping() {
         // 数组映射：采样在路由阶段一次完成并预烘焙进 body，适配器透传
-        ILlmAdaptor adaptor = registry.getAdaptor("deepseek");
+        ILlmAdaptor adaptor = adaptors.get("deepseek");
         JSONObject mapping = new JSONObject();
         JSONArray targets = new JSONArray();
         targets.add(MODEL);
@@ -131,7 +131,7 @@ public class DeepSeekAdaptorTest {
     @Test
     public void forward_stream_sse() throws Exception {
         // 流式转发：字节流透传，SSE 帧直到 [DONE]
-        ILlmAdaptor adaptor = registry.getAdaptor("deepseek");
+        ILlmAdaptor adaptor = adaptors.get("deepseek");
         JSONObject body = new JSONObject();
         body.put("model", MODEL);
         body.put("stream", true);

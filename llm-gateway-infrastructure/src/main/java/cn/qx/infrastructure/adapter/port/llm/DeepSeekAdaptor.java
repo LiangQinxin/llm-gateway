@@ -7,7 +7,7 @@ import java.util.List;
 /**
  * DeepSeek 适配器——OpenAI 兼容协议透传。
  */
-@Component
+@Component("deepseek")
 public class DeepSeekAdaptor extends OpenAICompatibleAdaptor {
 
     @Override

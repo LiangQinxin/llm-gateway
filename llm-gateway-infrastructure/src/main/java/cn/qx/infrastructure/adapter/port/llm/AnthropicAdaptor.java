@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit;
  * <p>本期管理面只要求连通性探测；转发协议转换在后续 proxy/adaptor 阶段实现。
  */
 @Slf4j
-@Component
+@Component("anthropic")
 public class AnthropicAdaptor implements ILlmAdaptor {
 
     private static final String DEFAULT_VERSION = "2023-06-01";

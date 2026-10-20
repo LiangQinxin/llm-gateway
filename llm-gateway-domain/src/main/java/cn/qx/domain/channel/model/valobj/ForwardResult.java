@@ -21,6 +21,9 @@ public class ForwardResult {
     /** 上游响应体（OpenAI 格式 JSON） */
     private JSONObject body;
 
+    /** 上游原始响应文本，字节保真透传使用。 */
+    private String raw;
+
     /** Token 用量（上游未返回 usage 时为 null） */
     private TokenUsage usage;
 }

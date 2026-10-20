@@ -79,6 +79,7 @@ public abstract class OpenAICompatibleAdaptor implements ILlmAdaptor {
                     return ForwardResult.builder()
                             .statusCode(status)
                             .body(json)
+                            .raw(text)
                             .usage(extractUsage(json))
                             .build();
                 });
@@ -96,9 +97,10 @@ public abstract class OpenAICompatibleAdaptor implements ILlmAdaptor {
                 .post(RequestBody.create(body.toJSONString(), okhttp3.MediaType.get("application/json")))
                 .build();
         try {
-            Response resp = client.newCall(req).execute();
+            okhttp3.Call call = client.newCall(req);
+            Response resp = call.execute();
             InputStream stream = resp.body() != null ? resp.body().byteStream() : InputStream.nullInputStream();
-            return StreamResult.builder().statusCode(resp.code()).body(stream).build();
+            return StreamResult.builder().statusCode(resp.code()).body(stream).cancel(call).build();
         } catch (Exception e) {
             throw new IllegalStateException("流式转发失败: " + e.getMessage(), e);
         }
