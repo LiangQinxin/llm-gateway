@@ -21,6 +21,12 @@ public class SseUsageParserServiceImpl implements ISseUsageParserService {
     private final ByteArrayOutputStream lineBuffer = new ByteArrayOutputStream();
     /** 最近一次解析到的总 Token 数 */
     private OptionalLong usageTokens = OptionalLong.empty();
+    /** 跨帧累计的输入 Token 数 */
+    private Long promptTokens;
+    /** 跨帧累计的输出 Token 数 */
+    private Long completionTokens;
+    /** 跨帧累计的总 Token 数 */
+    private Long totalTokens;
 
     /** 接受任意字节分块；跨块行在换行时拼接后解析。 */
     @Override
@@ -67,22 +73,46 @@ public class SseUsageParserServiceImpl implements ISseUsageParserService {
             return;
         }
         try {
-            JSONObject usage = JSON.parseObject(payload).getJSONObject("usage");
+            JSONObject event = JSON.parseObject(payload);
+            JSONObject usage = event.getJSONObject("usage");
+            if (usage == null && event.getJSONObject("message") != null) {
+                usage = event.getJSONObject("message").getJSONObject("usage");
+            }
+            if (usage == null && event.getJSONObject("response") != null) {
+                usage = event.getJSONObject("response").getJSONObject("usage");
+            }
             if (usage == null) {
                 return;
             }
             Long total = usage.getLong("total_tokens");
             if (total != null) {
-                usageTokens = OptionalLong.of(total);
-                return;
+                totalTokens = mergeNonZero(totalTokens, total);
             }
-            Long prompt = usage.getLong("prompt_tokens");
-            Long completion = usage.getLong("completion_tokens");
-            if (prompt != null && completion != null) {
-                usageTokens = OptionalLong.of(prompt + completion);
+            Long prompt = usage.getLong("prompt_tokens") != null
+                    ? usage.getLong("prompt_tokens")
+                    : usage.getLong("input_tokens");
+            Long completion = usage.getLong("completion_tokens") != null
+                    ? usage.getLong("completion_tokens")
+                    : usage.getLong("output_tokens");
+            promptTokens = mergeNonZero(promptTokens, prompt);
+            completionTokens = mergeNonZero(completionTokens, completion);
+            if (totalTokens != null) {
+                usageTokens = OptionalLong.of(totalTokens);
+            } else if (promptTokens != null && completionTokens != null) {
+                usageTokens = OptionalLong.of(promptTokens + completionTokens);
             }
         } catch (Exception ignored) {
             // best-effort：格式漂移时静默跳过，绝不阻断透传。
         }
+    }
+
+    private static Long mergeNonZero(Long current, Long incoming) {
+        if (incoming == null) {
+            return current;
+        }
+        if (incoming == 0 && current != null) {
+            return current;
+        }
+        return incoming;
     }
 }

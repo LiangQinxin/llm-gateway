@@ -31,7 +31,14 @@ public class ProxyRequest {
     /** 入站数据面路径（ADR-0011 扩展：供适配器选择原生端点，channel 域仍不解析 body） */
     private String inboundPath;
 
+    /** 入站协议族（ADR-0011 P_in） */
+    private ProtocolFamily protocol;
+
+    /** 入站原始字节（用于原生端点零转换透传） */
+    private String rawBody;
+
     public ProxyRequest(String model, JSONObject body, boolean stream) {
-        this(model, body, stream, DEFAULT_INBOUND_PATH);
+        this(model, body, stream, DEFAULT_INBOUND_PATH, ProtocolFamily.CC, null);
     }
+
 }

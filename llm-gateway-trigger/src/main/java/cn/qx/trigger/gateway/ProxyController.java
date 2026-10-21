@@ -57,6 +57,13 @@ public class ProxyController {
         return proxy(body, request, response);
     }
 
+    @PostMapping("/v1/messages")
+    public ResponseBodyEmitter messages(@RequestBody String body,
+                                        HttpServletRequest request,
+                                        HttpServletResponse response) {
+        return proxy(body, request, response);
+    }
+
     private ResponseBodyEmitter proxy(String body, HttpServletRequest request, HttpServletResponse response) {
         ResponseBodyEmitter emitter = new ResponseBodyEmitter();
         taskExecutor.execute(() -> {
@@ -67,12 +74,12 @@ public class ProxyController {
                         request.getRequestURI(), proxyRequest.getModel(), proxyRequest.isStream());
                 String apiKey = (String) request.getAttribute(ApiKeyFilter.REQUEST_ATTRIBUTE);
                 ProxyResult result = proxyCase.forward(proxyRequest, apiKey);
-                proxyCase.write(result, emitter, response);
+                proxyCase.write(result, request.getRequestURI(), emitter, response);
             } catch (ProxyException e) {
-                proxyCase.writeError(e, emitter, response);
+                proxyCase.writeError(e, request.getRequestURI(), emitter, response);
             } catch (Exception e) {
                 log.error("数据面转发异常", e);
-                proxyCase.writeUpstreamFailure(emitter, response, e);
+                proxyCase.writeUpstreamFailure(emitter, request.getRequestURI(), response, e);
             }
         });
         return emitter;

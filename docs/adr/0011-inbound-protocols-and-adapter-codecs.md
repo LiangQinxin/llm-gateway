@@ -63,6 +63,10 @@ google 厂商走 `/v1/chat/completions`（OpenAI 兼容端点），即 openai �
 
 入站 **body 转换**由"case 层 codec"调整为"**适配器内组合共享 codec**"；case 层只保留协议族策略（key 提取 / model 提取 / 错误体形状）。原因：dispatch 黑盒时序（Context 段）。ADR-0010 §3 的"入站与厂商无关、不放适配器以免 N×M"结论不变——N+M 由共享 codec 保证。
 
+### 9. 修订 ADR-0009 §7 sanitize 执行时机
+
+ProxyCase 仍执行与渠道无关的空 assistant 消息清洗；适配器命中原生端点时，若预处理结果仅因该清洗而与原始 JSON 不同，则复用原始请求字节，保证原生 CC/RP/MS 零改写。需要协议转换或模型映射时使用预处理后的消息。
+
 ## Considered Options
 
 - **case 层统一 body codec（ADR-0010 原案）**：否决。dispatch 黑盒内部才知命中渠道，case 提前转换必然造成 ms 原生渠道的双重转换；case 感知渠道 = 泄漏渠道知识，破 ADR-0009 门面。

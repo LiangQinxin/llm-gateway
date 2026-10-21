@@ -1,10 +1,10 @@
-package cn.qx.cases.proxy;
+package cn.qx.domain.proxy.support;
 
 import com.alibaba.fastjson2.JSONArray;
 import com.alibaba.fastjson2.JSONObject;
 
 /**
- * OpenAI 兼容上游共享的消息清洗规则。
+ * 与渠道无关的 OpenAI 兼容消息清洗规则。
  */
 public final class MessageSanitizer {
 
@@ -12,16 +12,15 @@ public final class MessageSanitizer {
     }
 
     /**
-     * 清理空 content 的 assistant 消息：
-     * 无 tool_calls 整条删除；有 tool_calls 时 content 置 null。
+     * 清理空 assistant content：无 tool_calls 删除整条消息；有 tool_calls 时 content 置 null。
      */
-    public static void sanitizeMessages(JSONObject body) {
+    public static JSONObject sanitizeMessages(JSONObject body) {
         if (body == null) {
-            return;
+            return null;
         }
         JSONArray messages = body.getJSONArray("messages");
         if (messages == null) {
-            return;
+            return body;
         }
         for (int i = 0; i < messages.size(); i++) {
             JSONObject message = messages.getJSONObject(i);
@@ -29,18 +28,15 @@ public final class MessageSanitizer {
                     || !isEmptyContent(message.get("content"))) {
                 continue;
             }
-            if (hasToolCalls(message)) {
+            JSONArray toolCalls = message.getJSONArray("tool_calls");
+            if (toolCalls != null && !toolCalls.isEmpty()) {
                 message.put("content", null);
             } else {
                 messages.remove(i);
                 i--;
             }
         }
-    }
-
-    private static boolean hasToolCalls(JSONObject message) {
-        JSONArray toolCalls = message.getJSONArray("tool_calls");
-        return toolCalls != null && !toolCalls.isEmpty();
+        return body;
     }
 
     private static boolean isEmptyContent(Object content) {

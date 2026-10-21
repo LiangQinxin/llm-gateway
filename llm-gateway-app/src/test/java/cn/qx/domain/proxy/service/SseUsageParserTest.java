@@ -59,4 +59,35 @@ public class SseUsageParserTest {
         log.info("无 usage 帧解析结果: {}", parser.usageTokens());
         assertTrue("解析失败应静默跳过", parser.usageTokens().isEmpty());
     }
+
+    @Test
+    public void extracts_nested_responses_api_usage() {
+        ISseUsageParserService parser = usageParserProvider.getObject();
+        parser.accept("""
+                event: response.completed
+                data: {"type":"response.completed","response":{"usage":{"input_tokens":4,"output_tokens":3,"total_tokens":7}}}
+
+                """.getBytes(StandardCharsets.UTF_8));
+        parser.finish();
+
+        log.info("Responses 嵌套 usage 解析结果: {}", parser.usageTokens());
+        assertEquals(OptionalLong.of(7), parser.usageTokens());
+    }
+
+    @Test
+    public void merges_anthropic_usage_across_message_frames() {
+        ISseUsageParserService parser = usageParserProvider.getObject();
+        parser.accept("""
+                event: message_start
+                data: {"type":"message_start","message":{"usage":{"input_tokens":3,"output_tokens":0}}}
+
+                event: message_delta
+                data: {"type":"message_delta","usage":{"output_tokens":2}}
+
+                """.getBytes(StandardCharsets.UTF_8));
+        parser.finish();
+
+        log.info("Anthropic 跨帧 usage 解析结果: {}", parser.usageTokens());
+        assertEquals(OptionalLong.of(5), parser.usageTokens());
+    }
 }

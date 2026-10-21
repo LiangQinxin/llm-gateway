@@ -1,5 +1,6 @@
 package cn.qx.trigger.gateway;
 
+import cn.qx.cases.proxy.InboundProtocol;
 import com.alibaba.fastjson2.JSONObject;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -39,6 +40,13 @@ public class ApiKeyFilter extends OncePerRequestFilter {
             writeUnauthorized(response, path);
             return;
         }
+        if (InboundProtocol.fromPath(path) == InboundProtocol.MS) {
+            String version = request.getHeader("anthropic-version");
+            if (version == null || version.isBlank()) {
+                writeBadRequest(response, "缺少 anthropic-version");
+                return;
+            }
+        }
         request.setAttribute(REQUEST_ATTRIBUTE, apiKey);
         filterChain.doFilter(request, response);
     }
@@ -57,14 +65,18 @@ public class ApiKeyFilter extends OncePerRequestFilter {
     }
 
     private static String extractApiKey(HttpServletRequest request, String path) {
-        if ("/v1/messages".equals(path)) {
-            return request.getHeader("x-api-key");
+        InboundProtocol protocol = InboundProtocol.fromPath(path);
+        String authorization = request.getHeader(protocol.getAuthHeader());
+        if (protocol.isBearer()) {
+            if (authorization == null || !authorization.startsWith(BEARER_PREFIX)) {
+                return null;
+            }
+            return authorization.substring(BEARER_PREFIX.length()).trim();
         }
-        String authorization = request.getHeader("Authorization");
-        if (authorization == null || !authorization.startsWith(BEARER_PREFIX)) {
+        if (authorization == null) {
             return null;
         }
-        return authorization.substring(BEARER_PREFIX.length()).trim();
+        return authorization.trim();
     }
 
     private static void writeUnauthorized(HttpServletResponse response, String path) throws IOException {
@@ -73,8 +85,8 @@ public class ApiKeyFilter extends OncePerRequestFilter {
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
         String message = "缺少调用方 API Key";
         String errorType = "invalid_request_error";
-        if ("/v1/messages".equals(path)) {
-            response.getWriter().write(anthropicError(message, "authentication_error"));
+        if (InboundProtocol.fromPath(path).isAnthropicError()) {
+            response.getWriter().write(anthropicError(message, "authentication_error", "invalid_api_key"));
             return;
         }
         JSONObject error = new JSONObject();
@@ -86,13 +98,22 @@ public class ApiKeyFilter extends OncePerRequestFilter {
         response.getWriter().write(body.toJSONString());
     }
 
-    private static String anthropicError(String message, String type) {
+    private static String anthropicError(String message, String type, String code) {
         JSONObject error = new JSONObject();
         error.put("type", type);
         error.put("message", message);
+        error.put("code", code);
         JSONObject body = new JSONObject();
         body.put("type", "error");
         body.put("error", error);
         return body.toJSONString();
+    }
+
+    private static void writeBadRequest(HttpServletResponse response, String message) throws IOException {
+        response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+        response.getWriter().write(anthropicError(
+                message, "invalid_request_error", "invalid_request_error"));
     }
 }

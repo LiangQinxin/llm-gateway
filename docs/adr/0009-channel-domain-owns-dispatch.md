@@ -64,7 +64,7 @@ public class DispatchOutcome {
 
 ### 7. 其他不变
 
-- sanitize（空 content 的 assistant 消息清洗）留在 ProxyCase 入站侧，与渠道无关；
+- sanitize（空 content 的 assistant 消息清洗）留在 ProxyCase 入站侧，与渠道无关；命中原生端点时由适配器按 ADR-0011 §4 复用原始请求字节；
 - `StreamResult.cancel`（OkHttp Call）原样透传：adaptor → DispatchOutcome.streaming → ProxyCase 挂到 `emitter.onCompletion/onError`；
 - `ThreadLocalRandom.current()` 作为数组映射采样的随机源（无锁、无线程竞争、无创建开销）；
 - 流式/非流式统一 `ResponseBodyEmitter`、字节级透传、非 2xx 错误体透传——全部沿用 ADR-0008。

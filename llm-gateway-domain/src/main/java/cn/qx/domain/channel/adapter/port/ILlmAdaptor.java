@@ -2,6 +2,7 @@ package cn.qx.domain.channel.adapter.port;
 
 import cn.qx.domain.channel.model.valobj.ChannelConfig;
 import cn.qx.domain.channel.model.valobj.ForwardResult;
+import cn.qx.domain.channel.model.valobj.NativeEndpoint;
 import cn.qx.domain.channel.model.valobj.ProxyRequest;
 import cn.qx.domain.channel.model.valobj.StreamResult;
 import cn.qx.domain.channel.model.valobj.TestResult;
@@ -26,6 +27,9 @@ public interface ILlmAdaptor {
 
     /** 默认 API 地址 */
     String defaultBaseUrl();
+
+    /** 有序原生端点表；第一个为 primary。 */
+    List<NativeEndpoint> nativeEndpoints();
 
     /** 渠道连通性测试（回写 last_test_* 由调用方负责） */
     TestResult test(ChannelConfig config);

@@ -447,7 +447,8 @@ public class DataPlaneAuthTest {
                     throw new IOException("client disconnected");
                 }
             };
-            proxyCase.write(result, disconnectedEmitter, new MockHttpServletResponse());
+            proxyCase.write(result, "/v1/chat/completions",
+                    disconnectedEmitter, new MockHttpServletResponse());
 
             Thread.sleep(100);
             log.info("客户端取消后 quotaUsed={}", apiKeyCase.get(apiKey.getId()).getQuotaUsed());
@@ -521,7 +522,7 @@ public class DataPlaneAuthTest {
     private Channel createChannel(String model, String config) {
         return channelCase.create(Channel.builder()
                 .name("数据面上游-" + UUID.randomUUID())
-                .type("deepseek")
+                .type("openai")
                 .baseUrl(upstream.url("/v1").toString().replaceAll("/+$", ""))
                 .apiKey("upstream-key")
                 .models(JSON.toJSONString(new String[]{model}))

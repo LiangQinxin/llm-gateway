@@ -24,11 +24,14 @@ public interface IProxyCase {
     ProxyResult forward(ProxyRequest request, String apiKey);
 
     /** 将结果写入 ResponseBodyEmitter；流式结果绑定取消句柄。 */
-    void write(ProxyResult result, ResponseBodyEmitter emitter, HttpServletResponse response);
+    void write(ProxyResult result, String inboundPath,
+               ResponseBodyEmitter emitter, HttpServletResponse response);
 
     /** 数据面 OpenAI 风格错误响应。 */
-    void writeError(ProxyException exception, ResponseBodyEmitter emitter, HttpServletResponse response);
+    void writeError(ProxyException exception, String inboundPath,
+                    ResponseBodyEmitter emitter, HttpServletResponse response);
 
     /** 尚未发送任何字节时的系统失败，回退为 OpenAI 风格 JSON。 */
-    void writeUpstreamFailure(ResponseBodyEmitter emitter, HttpServletResponse response, Throwable error);
+    void writeUpstreamFailure(ResponseBodyEmitter emitter, String inboundPath,
+                              HttpServletResponse response, Throwable error);
 }

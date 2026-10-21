@@ -151,7 +151,7 @@ public class ChannelDispatchServiceTest {
     }
 
     @Test
-    public void probe_only_anthropic_channel_is_not_routed() {
+    public void anthropic_channel_is_routable_after_forwarding_support() {
         String model = "anthropic-only-" + UUID.randomUUID();
         Channel channel = channelCase.create(Channel.builder()
                 .name("测试-dispatch-anthropic-" + UUID.randomUUID())
@@ -166,8 +166,9 @@ public class ChannelDispatchServiceTest {
                 .build());
         try {
             DispatchOutcome outcome = dispatchInvoker.invoke(request(model, false, "anthropic"));
-            assertFalse("仅探测能力适配器不应进入数据面", outcome.isRouted());
-            assertNotNull(outcome.getErrorMessage());
+            log.info("Anthropic 路由结果: {}", JSON.toJSONString(outcome));
+            assertTrue("Anthropic 适配器应参与数据面路由", outcome.isRouted());
+            assertEquals("Anthropic 转换转发应成功", 200, outcome.getUnary().getStatusCode());
         } finally {
             channelCase.delete(channel.getId());
         }

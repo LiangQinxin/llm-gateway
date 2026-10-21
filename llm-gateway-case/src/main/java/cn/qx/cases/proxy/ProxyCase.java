@@ -9,8 +9,10 @@ import cn.qx.domain.channel.model.valobj.ProxyRequest;
 import cn.qx.domain.channel.model.valobj.StreamResult;
 import cn.qx.domain.identity.model.entity.ApiKey;
 import cn.qx.domain.proxy.service.ISseUsageParserService;
+import cn.qx.domain.proxy.support.MessageSanitizer;
 import cn.qx.types.enums.AuthFailureCode;
 import cn.qx.types.exception.AppException;
+import cn.qx.types.exception.UnsupportedProtocolFieldException;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONObject;
 import jakarta.annotation.Resource;
@@ -75,24 +77,32 @@ public class ProxyCase implements IProxyCase {
         Boolean streamField = body.getBoolean("stream");
         boolean stream = streamCapable
                 && (streamField != null ? streamField : acceptsEventStream(acceptHeader));
-        if (streamCapable) {
-            body.put("stream", stream);
+        if (streamCapable && streamField == null && stream) {
+            body.put("stream", true);
         }
         MessageSanitizer.sanitizeMessages(body);
         log.info("入站请求: model={}, stream={}, body={}", model, stream, body);
-        return new ProxyRequest(model, body, stream, path);
+        return new ProxyRequest(
+                model, body, stream, path, InboundProtocol.fromPath(path).getFamily(), rawBody);
     }
 
     /** 一次调用渠道门面并转换为字节中立结果。 */
     @Override
     public ProxyResult forward(ProxyRequest request, String apiKey) {
         ApiKey identity = authenticate(apiKey, request.getModel());
-        DispatchOutcome outcome = dispatchInvoker.invoke(request);
+        DispatchOutcome outcome;
+        try {
+            outcome = dispatchInvoker.invoke(request);
+        } catch (UnsupportedProtocolFieldException e) {
+            throw new ProxyException(
+                    400, "unsupported_field", "invalid_request_error", e.getMessage());
+        }
         if (!outcome.isRouted()) {
             return ProxyResult.builder()
                     .statusCode(404)
                     .contentType(JSON_CONTENT_TYPE)
-                    .raw(errorBody(outcome.getErrorMessage(), "invalid_request_error", "model_not_found"))
+                    .raw(errorBody(outcome.getErrorMessage(), "invalid_request_error",
+                            "model_not_found", request.getInboundPath()))
                     .build();
         }
         if (request.isStream()) {
@@ -159,7 +169,8 @@ public class ProxyCase implements IProxyCase {
 
     /** 将结果写入 ResponseBodyEmitter；流式结果绑定取消句柄。 */
     @Override
-    public void write(ProxyResult result, ResponseBodyEmitter emitter, HttpServletResponse response) {
+    public void write(ProxyResult result, String inboundPath,
+                      ResponseBodyEmitter emitter, HttpServletResponse response) {
         response.setStatus(result.getStatusCode());
         response.setContentType(result.getContentType());
         if (result.getStream() == null) {
@@ -189,28 +200,33 @@ public class ProxyCase implements IProxyCase {
             } else {
                 response.setStatus(502);
                 response.setContentType(JSON_CONTENT_TYPE);
-                sendText(emitter, errorBody("上游流式响应失败", "upstream_error", "upstream_error"));
+                sendText(emitter,
+                        errorBody("上游流式响应失败", "upstream_error", "upstream_error", inboundPath));
             }
         }
     }
 
     /** 数据面 OpenAI 风格错误响应。 */
     @Override
-    public void writeError(ProxyException exception, ResponseBodyEmitter emitter, HttpServletResponse response) {
+    public void writeError(ProxyException exception, String inboundPath,
+                           ResponseBodyEmitter emitter, HttpServletResponse response) {
         response.setStatus(exception.getStatusCode());
         response.setContentType(JSON_CONTENT_TYPE);
-        sendText(emitter, errorBody(exception.getInfo(), exception.getErrorType(), exception.getCode()));
+        sendText(emitter, errorBody(
+                exception.getInfo(), exception.getErrorType(), exception.getCode(), inboundPath));
     }
 
     /** 尚未发送任何字节时的系统失败，回退为 OpenAI 风格 JSON。 */
     @Override
     public void writeUpstreamFailure(ResponseBodyEmitter emitter,
+                                     String inboundPath,
                                      HttpServletResponse response,
                                      Throwable error) {
         log.warn("数据面上游失败，回退 JSON: {}", error.getMessage());
         response.setStatus(502);
         response.setContentType(JSON_CONTENT_TYPE);
-        sendText(emitter, errorBody("上游请求失败", "upstream_error", "upstream_error"));
+        sendText(emitter,
+                errorBody("上游请求失败", "upstream_error", "upstream_error", inboundPath));
     }
 
     private static void sendText(ResponseBodyEmitter emitter, String text) {
@@ -222,7 +238,17 @@ public class ProxyCase implements IProxyCase {
         }
     }
 
-    private static String errorBody(String message, String type, String code) {
+    private static String errorBody(String message, String type, String code, String inboundPath) {
+        if (InboundProtocol.fromPath(inboundPath).isAnthropicError()) {
+            JSONObject error = new JSONObject();
+            error.put("type", anthropicErrorType(code));
+            error.put("message", message);
+            error.put("code", code);
+            JSONObject body = new JSONObject();
+            body.put("type", "error");
+            body.put("error", error);
+            return body.toJSONString();
+        }
         JSONObject error = new JSONObject();
         error.put("message", message);
         error.put("type", type);
@@ -230,6 +256,15 @@ public class ProxyCase implements IProxyCase {
         JSONObject body = new JSONObject();
         body.put("error", error);
         return body.toJSONString();
+    }
+
+    private static String anthropicErrorType(String code) {
+        return switch (code == null ? "" : code) {
+            case "invalid_api_key" -> "authentication_error";
+            case "model_not_found" -> "not_found_error";
+            case "forbidden", "insufficient_quota" -> "permission_error";
+            default -> "invalid_request_error";
+        };
     }
 
     private static boolean acceptsEventStream(String acceptHeader) {
