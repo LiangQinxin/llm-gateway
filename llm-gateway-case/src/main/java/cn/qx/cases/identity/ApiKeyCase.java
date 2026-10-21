@@ -1,5 +1,6 @@
 package cn.qx.cases.identity;
 
+import cn.qx.api.IApiKeyCase;
 import cn.qx.domain.identity.adapter.repository.IApiKeyRepository;
 import cn.qx.domain.identity.model.entity.ApiKey;
 import cn.qx.types.common.TimeUtils;
@@ -17,12 +18,13 @@ import java.util.List;
  */
 @Slf4j
 @Service
-public class ApiKeyCase {
+public class ApiKeyCase implements IApiKeyCase {
 
     /** API Key 仓储端口 */
     @Resource
     private IApiKeyRepository apiKeyRepository;
 
+    @Override
     public ApiKey create(ApiKey apiKey) {
         if (apiKey == null || isBlank(apiKey.getName())) {
             throw new AppException(ResponseCode.ILLEGAL_PARAMETER.getCode(), "密钥名称不能为空");
@@ -43,10 +45,12 @@ public class ApiKeyCase {
         return apiKey;
     }
 
+    @Override
     public List<ApiKey> list() {
         return apiKeyRepository.listAll();
     }
 
+    @Override
     public ApiKey get(String id) {
         ApiKey apiKey = apiKeyRepository.getById(id);
         if (apiKey == null) {
@@ -55,6 +59,7 @@ public class ApiKeyCase {
         return apiKey;
     }
 
+    @Override
     public ApiKey update(ApiKey apiKey) {
         if (apiKey == null || isBlank(apiKey.getId())) {
             throw new AppException(ResponseCode.ILLEGAL_PARAMETER.getCode(), "API Key ID 不能为空");
@@ -76,17 +81,20 @@ public class ApiKeyCase {
         return apiKey;
     }
 
+    @Override
     public ApiKey toggle(String id, boolean enabled) {
         get(id);
         apiKeyRepository.updateStatus(id, enabled ? 1 : 0, TimeUtils.now());
         return get(id);
     }
 
+    @Override
     public void delete(String id) {
         apiKeyRepository.deleteById(id);
     }
 
     /** 认证调用方密钥，并校验模型/渠道白名单。 */
+    @Override
     public ApiKey authenticate(String key, String model, String channelId) {
         if (isBlank(key)) {
             throw new AppException(ResponseCode.UNAUTHORIZED.getCode(), "缺少 API Key");
@@ -102,6 +110,7 @@ public class ApiKeyCase {
     }
 
     /** 请求完成后累加配额，SQL 原子封顶。 */
+    @Override
     public ApiKey recordUsage(String id, long delta) {
         if (delta < 0) {
             throw new AppException(ResponseCode.ILLEGAL_PARAMETER.getCode(), "配额增量不能为负数");

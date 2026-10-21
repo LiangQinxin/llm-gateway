@@ -1,10 +1,10 @@
 package cn.qx.trigger.http;
 
+import cn.qx.api.IApiKeyCase;
 import cn.qx.api.dto.common.ToggleRequest;
 import cn.qx.api.dto.identity.ApiKeyRequest;
 import cn.qx.api.response.Response;
 import cn.qx.api.response.Responses;
-import cn.qx.cases.identity.ApiKeyCase;
 import cn.qx.domain.identity.model.entity.ApiKey;
 import jakarta.annotation.Resource;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -27,7 +27,7 @@ public class IdentityController {
 
     /** API Key 用例 */
     @Resource
-    private ApiKeyCase apiKeyCase;
+    private IApiKeyCase apiKeyCase;
 
     @GetMapping
     public Response<List<ApiKey>> list() {

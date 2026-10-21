@@ -17,8 +17,20 @@ _Avoid_: token、API 凭证、api_key（列名保留）
 _Avoid_: audit row、log entry
 
 **Proxy 域**:
-转发主链路的编排层集合：入站解析、sanitize、identity 鉴权/配额、流监督（stream_supervisor）、单次尝试判定（attempt）、加权选 key（weighted_key，后续）、把结果绑到 ResponseBodyEmitter。**路由计划（route_plan）与渠道分发已下沉 channel 域（ADR-0009）**，不再是 proxy 域知识。HTTP 字节进出在 infrastructure，上游协议形状转换在渠道适配器（ADR-0006）。
+转发主链路的编排层集合：入站解析、sanitize、identity 鉴权/配额、协议族解析、流监督（stream_supervisor）、单次尝试判定（attempt）、加权选 key（weighted_key，后续）、把结果绑到 ResponseBodyEmitter。**路由计划（route_plan）与渠道分发已下沉 channel 域（ADR-0009）**，不再是 proxy 域知识。HTTP 字节进出在 infrastructure，上游协议形状转换在渠道适配器（ADR-0006）。
 _Avoid_: core、转发模块、route_plan（已迁出）
+
+**ApiKeyFilter（数据面鉴权过滤器）**:
+trigger 层过滤器（ADR-0010）：按免鉴权白名单直接放行，按协议族从请求头提取调用方 key（messages→x-api-key，其余→Bearer），取不到即 401 快速失败；不查库、不做白名单，完整认证在 case 层。
+_Avoid_: AuthInterceptor、认证拦截器
+
+**协议族（Protocol Family）**:
+入站路径所属的协议维度：本期三族——cc（OpenAI Chat Completions）/ rp（OpenAI Responses）/ ms（Claude Messages）。决定调用方 key 的提取位置（ms→x-api-key，其余→Bearer）、model 的提取位置与错误体形状（ms→Anthropic 形状，其余→OpenAI 形状）；注册表以路径为键，model 是从 body 提取的输入而非键（ADR-0010/0011）。
+_Avoid_: 协议类型（避免与渠道 type 混淆）、入站协议
+
+**Canonical（经典中间格式）**:
+协议转换的统一中转形状 = OpenAI Chat Completions（cc）请求/响应结构。入站 codec（rp/ms→cc）与出站 codec（cc↔ms）以它为唯一中间量，任意入站×出站组合 = codec 组合，杜绝 N×M 直接转换对；cc 入站且渠道原生支持 cc 时为零转换透传路径（ADR-0011）。
+_Avoid_: 中间协议、标准格式
 
 **IDispatchInvoker（转发门面）**:
 channel 域对 ProxyCase 暴露的唯一转发入口端口（ADR-0009）。ProxyCase 只调它，不感知渠道查询、model 映射、适配器 map 或流式分支。唯一实现是路由器 service：内部串联「全查启用渠道 → 按 model 匹配 → 采样 upstreamModel → 烘焙 body.model → 按 channel.type 路由到 ILlmAdaptor → 按 stream 分支执行 forward/forwardStream」。
@@ -37,7 +49,7 @@ _Avoid_: codec、协议层（"protocol" 仅作 schema 中的协议标识列）
 _Avoid_: 模型改写、model_map
 
 **ProxyResult（转发结果）**:
-proxy 域编排输出的协议无关响应：状态码 + 非流式原始文本或流式字节流（SSE 透传）；上游状态码与错误体原样透传，数据面不包装（ADR-0007/0008）。
+proxy 域编排输出的协议无关响应：状态码 + 非流式原始文本或流式字节流（SSE 透传）；上游状态码与错误体原样透传，数据面不包装（ADR-0007/0008）。类型位于 `api/dto/proxy`（case 输出对象归 api/dto，见 AGENTS.md「架构与约定」）；取消句柄以 Runnable 承载，api 层不引入 okhttp。
 _Avoid_: GatewayResponse、统一响应
 
 **StreamMode（流式模式）**:
@@ -57,5 +69,5 @@ _Avoid_: user、用户域、账号域（避免与"账号"泛指混淆）
 _Avoid_: service、facade、handler
 
 **quota（配额）**:
-密钥额度语义：quota_limit=0 表示不限；quota_used 递增带封顶保护（超过上限后不再累加）。
+密钥额度语义：quota_limit=0 表示不限；quota_used 递增带封顶保护（超过上限后不再累加）。认证时预检超限拒绝（403 insufficient_quota）；用量 best-effort——流式依赖上游 usage 帧（需请求带 stream_options），拿不到则不记、不估算、不阻断透传（ADR-0010）。
 _Avoid_: limit（列名 quota_limit 保留）、额度上限（表述需含"0=不限"）

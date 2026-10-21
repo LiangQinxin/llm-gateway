@@ -1,5 +1,7 @@
 package cn.qx.cases.audit;
 
+import cn.qx.api.IRequestLogCase;
+import cn.qx.api.dto.audit.RequestLogPageResult;
 import cn.qx.domain.audit.adapter.repository.IRequestLogRepository;
 import cn.qx.domain.audit.model.entity.RequestLog;
 import cn.qx.domain.audit.model.valobj.RequestLogQuery;
@@ -19,7 +21,7 @@ import java.util.List;
  */
 @Slf4j
 @Service
-public class RequestLogCase {
+public class RequestLogCase implements IRequestLogCase {
 
     /** 分页单页最大条数上限（缺省 200） */
     private static final int MAX_PAGE_SIZE = 200;
@@ -29,6 +31,7 @@ public class RequestLogCase {
     private IRequestLogRepository requestLogRepository;
 
     /** 追加一条不可变审计日志。 */
+    @Override
     public RequestLog record(RequestLog requestLog) {
         if (requestLog == null || isBlank(requestLog.getModel())) {
             throw new AppException(ResponseCode.ILLEGAL_PARAMETER.getCode(), "日志 model 不能为空");
@@ -55,6 +58,7 @@ public class RequestLogCase {
     }
 
     @Transactional(readOnly = true)
+    @Override
     public RequestLogPageResult page(RequestLogQuery query) {
         RequestLogQuery normalized = normalize(query);
         normalized.setCreatedFrom(TimeUtils.normalize(normalized.getCreatedFrom()));
@@ -71,6 +75,7 @@ public class RequestLogCase {
                 .build();
     }
 
+    @Override
     public RequestLog get(String id) {
         RequestLog requestLog = requestLogRepository.getById(id);
         if (requestLog == null) {
@@ -79,10 +84,12 @@ public class RequestLogCase {
         return requestLog;
     }
 
+    @Override
     public void delete(String id) {
         requestLogRepository.deleteById(id);
     }
 
+    @Override
     public int deleteBefore(String createdAt) {
         if (isBlank(createdAt)) {
             throw new AppException(ResponseCode.ILLEGAL_PARAMETER.getCode(), "清理时间阈值不能为空");
@@ -93,6 +100,7 @@ public class RequestLogCase {
         return deleted;
     }
 
+    @Override
     public int clearAll() {
         int cleared = requestLogRepository.clearAll();
         log.info("已清空请求日志 {} 条", cleared);

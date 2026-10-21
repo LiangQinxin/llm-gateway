@@ -20,20 +20,19 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * 渠道域统一路由器：匹配、模型映射预烘焙、适配器分发。
+ * 渠道域统一路由器：匹配、模型映射预烘焙、适配器分发（{@link IChannelDispatchService} 唯一实现）。
  */
 @Slf4j
 @Service
-public class ChannelDispatchService implements IDispatchInvoker {
+public class ChannelDispatchServiceImpl implements IChannelDispatchService, IDispatchInvoker {
 
     /** 渠道仓储（查询启用渠道，按优先级/权重排序返回） */
     private final IChannelRepository channelRepository;
-
     /** 协议适配器注册表：key=渠道类型，value=对应 LLM 适配器 */
     private final Map<String, ILlmAdaptor> adaptors = new ConcurrentHashMap<>();
 
-    public ChannelDispatchService(IChannelRepository channelRepository,
-                                  List<ILlmAdaptor> adaptors) {
+    public ChannelDispatchServiceImpl(IChannelRepository channelRepository,
+                                      List<ILlmAdaptor> adaptors) {
         this.channelRepository = channelRepository;
         for (ILlmAdaptor adaptor : adaptors) {
             this.adaptors.put(adaptor.channelType(), adaptor);

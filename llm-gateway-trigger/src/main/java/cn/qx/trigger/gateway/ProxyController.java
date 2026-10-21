@@ -1,9 +1,9 @@
 package cn.qx.trigger.gateway;
 
-import cn.qx.cases.proxy.ProxyCase;
+import cn.qx.api.dto.proxy.ProxyResult;
+import cn.qx.cases.proxy.IProxyCase;
 import cn.qx.cases.proxy.ProxyException;
 import cn.qx.domain.channel.model.valobj.ProxyRequest;
-import cn.qx.domain.proxy.model.valobj.ProxyResult;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -23,7 +23,7 @@ public class ProxyController {
 
     /** 数据面代理用例 */
     @Resource
-    private ProxyCase proxyCase;
+    private IProxyCase proxyCase;
 
     /** 异步任务执行器（applicationTaskExecutor，流式转发用） */
     @Resource(name = "applicationTaskExecutor")

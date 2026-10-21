@@ -1,5 +1,6 @@
 package cn.qx.cases.channel;
 
+import cn.qx.api.IChannelCase;
 import cn.qx.domain.channel.adapter.port.ILlmAdaptor;
 import cn.qx.domain.channel.adapter.repository.IChannelRepository;
 import cn.qx.domain.channel.model.entity.Channel;
@@ -22,7 +23,7 @@ import java.util.Map;
  */
 @Slf4j
 @Service
-public class ChannelCase {
+public class ChannelCase implements IChannelCase {
 
     /** 渠道仓储端口 */
     @Resource
@@ -33,6 +34,7 @@ public class ChannelCase {
     private Map<String, ILlmAdaptor> adaptors;
 
     /** 新建渠道。ID、时间与缺省配置由用例生成。 */
+    @Override
     public Channel create(Channel channel) {
         if (channel == null) {
             throw new IllegalArgumentException("渠道不能为空");
@@ -60,16 +62,19 @@ public class ChannelCase {
     }
 
     /** 查询全部渠道。 */
+    @Override
     public List<Channel> list() {
         return channelRepository.listAll();
     }
 
     /** 查询启用渠道并按路由顺序排序。 */
+    @Override
     public List<Channel> listEnabledOrdered() {
         return channelRepository.listEnabledOrdered();
     }
 
     /** 查询渠道详情。 */
+    @Override
     public Channel get(String id) {
         Channel channel = channelRepository.getById(id);
         if (channel == null) {
@@ -79,6 +84,7 @@ public class ChannelCase {
     }
 
     /** 更新渠道全部配置。 */
+    @Override
     public Channel update(Channel channel) {
         if (channel == null || isBlank(channel.getId())) {
             throw new IllegalArgumentException("渠道 ID 不能为空");
@@ -98,6 +104,7 @@ public class ChannelCase {
     }
 
     /** 启用或停用渠道。 */
+    @Override
     public Channel toggle(String id, boolean enabled) {
         get(id);
         channelRepository.updateStatus(id, enabled ? 1 : 0, TimeUtils.now());
@@ -105,6 +112,7 @@ public class ChannelCase {
     }
 
     /** 删除渠道；不存在视为幂等成功。 */
+    @Override
     public void delete(String id) {
         channelRepository.deleteById(id);
     }
@@ -115,6 +123,7 @@ public class ChannelCase {
      * @param id 渠道 ID
      * @return 测试结果
      */
+    @Override
     public TestResult testChannel(String id) {
         Channel channel = channelRepository.getById(id);
         if (channel == null) {

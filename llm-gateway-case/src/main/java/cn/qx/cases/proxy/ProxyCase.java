@@ -1,16 +1,15 @@
 package cn.qx.cases.proxy;
 
+import cn.qx.api.dto.proxy.ProxyResult;
 import cn.qx.domain.channel.adapter.port.IDispatchInvoker;
 import cn.qx.domain.channel.model.valobj.DispatchOutcome;
 import cn.qx.domain.channel.model.valobj.ForwardResult;
 import cn.qx.domain.channel.model.valobj.ProxyRequest;
 import cn.qx.domain.channel.model.valobj.StreamResult;
-import cn.qx.domain.proxy.model.valobj.ProxyResult;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONObject;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
-import okhttp3.Call;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter;
@@ -27,11 +26,10 @@ import java.util.List;
  */
 @Slf4j
 @Service
-public class ProxyCase {
+public class ProxyCase implements IProxyCase {
 
     /** 非流式响应 Content-Type：application/json */
     private static final String JSON_CONTENT_TYPE = MediaType.APPLICATION_JSON_VALUE;
-
     /** 流式（SSE）响应 Content-Type：text/event-stream;charset=UTF-8 */
     private static final String SSE_CONTENT_TYPE = "text/event-stream;charset=UTF-8";
 
@@ -40,6 +38,7 @@ public class ProxyCase {
     private IDispatchInvoker dispatchInvoker;
 
     /** 解析请求并按 body.stream（缺省 Accept）确定响应形态。 */
+    @Override
     public ProxyRequest prepare(String rawBody, String acceptHeader) {
         JSONObject body;
         try {
@@ -63,6 +62,7 @@ public class ProxyCase {
     }
 
     /** 一次调用渠道门面并转换为字节中立结果。 */
+    @Override
     public ProxyResult forward(ProxyRequest request) {
         DispatchOutcome outcome = dispatchInvoker.invoke(request);
         if (!outcome.isRouted()) {
@@ -78,7 +78,7 @@ public class ProxyCase {
                     .statusCode(streamResult.getStatusCode())
                     .contentType(isSuccessful(streamResult.getStatusCode()) ? SSE_CONTENT_TYPE : JSON_CONTENT_TYPE)
                     .stream(streamResult.getBody())
-                    .cancel(streamResult.getCancel())
+                    .cancel(streamResult.getCancel() == null ? null : streamResult.getCancel()::cancel)
                     .build();
         }
         ForwardResult forwardResult = outcome.getUnary();
@@ -95,6 +95,7 @@ public class ProxyCase {
     }
 
     /** 将结果写入 ResponseBodyEmitter；流式结果绑定取消句柄。 */
+    @Override
     public void write(ProxyResult result, ResponseBodyEmitter emitter, HttpServletResponse response) {
         response.setStatus(result.getStatusCode());
         response.setContentType(result.getContentType());
@@ -102,10 +103,10 @@ public class ProxyCase {
             sendText(emitter, result.getRaw());
             return;
         }
-        Call cancel = result.getCancel();
+        Runnable cancel = result.getCancel();
         if (cancel != null) {
-            emitter.onCompletion(cancel::cancel);
-            emitter.onError(error -> cancel.cancel());
+            emitter.onCompletion(cancel);
+            emitter.onError(error -> cancel.run());
         }
         boolean sent = false;
         try (InputStream input = result.getStream()) {
@@ -131,6 +132,7 @@ public class ProxyCase {
     }
 
     /** 数据面 OpenAI 风格错误响应。 */
+    @Override
     public void writeError(ProxyException exception, ResponseBodyEmitter emitter, HttpServletResponse response) {
         response.setStatus(exception.getStatusCode());
         response.setContentType(JSON_CONTENT_TYPE);
@@ -138,6 +140,7 @@ public class ProxyCase {
     }
 
     /** 尚未发送任何字节时的系统失败，回退为 OpenAI 风格 JSON。 */
+    @Override
     public void writeUpstreamFailure(ResponseBodyEmitter emitter,
                                      HttpServletResponse response,
                                      Throwable error) {

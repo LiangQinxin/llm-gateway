@@ -1,4 +1,4 @@
-package cn.qx.cases.audit;
+package cn.qx.api.dto.audit;
 
 import cn.qx.domain.audit.model.entity.RequestLog;
 import lombok.AllArgsConstructor;
@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 import java.util.List;
 
 /**
- * 请求日志分页结果。
+ * 请求日志分页结果（case 输出对象，分层约定：输出对象归 api/dto）。
  */
 @Data
 @Builder

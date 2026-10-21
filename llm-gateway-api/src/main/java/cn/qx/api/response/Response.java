@@ -18,10 +18,8 @@ public class Response<T> implements Serializable {
 
     /** 响应码（4 位数字串，如 0000=成功） */
     private String code;
-
     /** 响应说明文案 */
     private String info;
-
     /** 响应数据负载 */
     private T data;
 

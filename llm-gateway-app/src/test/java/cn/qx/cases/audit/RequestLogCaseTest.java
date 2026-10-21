@@ -1,5 +1,6 @@
 package cn.qx.cases.audit;
 
+import cn.qx.api.dto.audit.RequestLogPageResult;
 import cn.qx.domain.audit.model.entity.RequestLog;
 import cn.qx.domain.audit.model.valobj.RequestLogQuery;
 import com.alibaba.fastjson2.JSON;

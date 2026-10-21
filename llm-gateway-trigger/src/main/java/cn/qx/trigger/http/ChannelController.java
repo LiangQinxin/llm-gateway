@@ -1,10 +1,10 @@
 package cn.qx.trigger.http;
 
+import cn.qx.api.IChannelCase;
 import cn.qx.api.dto.channel.ChannelRequest;
 import cn.qx.api.dto.common.ToggleRequest;
 import cn.qx.api.response.Response;
 import cn.qx.api.response.Responses;
-import cn.qx.cases.channel.ChannelCase;
 import cn.qx.domain.channel.model.entity.Channel;
 import cn.qx.domain.channel.model.valobj.TestResult;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -28,7 +28,7 @@ public class ChannelController {
 
     /** 渠道用例 */
     @Resource
-    private ChannelCase channelCase;
+    private IChannelCase channelCase;
 
     @GetMapping
     public Response<List<Channel>> list() {

@@ -31,10 +31,8 @@ public abstract class OpenAICompatibleAdaptor implements ILlmAdaptor, IForwardin
 
     /** 连接超时（秒，缺省 10） */
     private static final int CONNECT_TIMEOUT_SECS = 10;
-
     /** 流式读超时下限（秒，缺省 600） */
     private static final int MIN_STREAM_TIMEOUT_SECS = 600;
-
     /** JSON 请求体媒体类型 */
     private static final MediaType JSON_MEDIA_TYPE = MediaType.get("application/json");
 

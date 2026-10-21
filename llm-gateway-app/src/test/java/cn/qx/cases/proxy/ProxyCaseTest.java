@@ -1,9 +1,9 @@
 package cn.qx.cases.proxy;
 
+import cn.qx.api.dto.proxy.ProxyResult;
 import cn.qx.cases.channel.ChannelCase;
 import cn.qx.domain.channel.model.entity.Channel;
 import cn.qx.domain.channel.model.valobj.ProxyRequest;
-import cn.qx.domain.proxy.model.valobj.ProxyResult;
 import cn.qx.types.exception.AppException;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONArray;

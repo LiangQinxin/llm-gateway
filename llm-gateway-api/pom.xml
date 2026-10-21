@@ -24,6 +24,11 @@
             <groupId>cn.qx</groupId>
             <artifactId>llm-gateway-types</artifactId>
         </dependency>
+        <!-- case 接口与输出 DTO 签名引用领域类型（ApiKey/Channel/RequestLog 等），依赖不收紧、无环 -->
+        <dependency>
+            <groupId>cn.qx</groupId>
+            <artifactId>llm-gateway-domain</artifactId>
+        </dependency>
     </dependencies>
 
     <build>

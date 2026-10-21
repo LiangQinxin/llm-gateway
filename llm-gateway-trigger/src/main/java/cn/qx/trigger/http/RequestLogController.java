@@ -1,9 +1,9 @@
 package cn.qx.trigger.http;
 
+import cn.qx.api.IRequestLogCase;
+import cn.qx.api.dto.audit.RequestLogPageResult;
 import cn.qx.api.response.Response;
 import cn.qx.api.response.Responses;
-import cn.qx.cases.audit.RequestLogCase;
-import cn.qx.cases.audit.RequestLogPageResult;
 import cn.qx.domain.audit.model.entity.RequestLog;
 import cn.qx.domain.audit.model.valobj.RequestLogQuery;
 import jakarta.annotation.Resource;
@@ -23,7 +23,7 @@ public class RequestLogController {
 
     /** 请求日志用例 */
     @Resource
-    private RequestLogCase requestLogCase;
+    private IRequestLogCase requestLogCase;
 
     @GetMapping
     public Response<RequestLogPageResult> page(
