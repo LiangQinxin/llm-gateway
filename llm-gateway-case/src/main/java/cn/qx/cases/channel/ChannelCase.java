@@ -1,5 +1,7 @@
 package cn.qx.cases.channel;
 
+import cn.qx.api.dto.channel.ModelInfo;
+import cn.qx.api.dto.channel.ModelListResult;
 import cn.qx.api.IChannelCase;
 import cn.qx.domain.channel.adapter.port.ILlmAdaptor;
 import cn.qx.domain.channel.adapter.repository.IChannelRepository;
@@ -164,5 +166,22 @@ public class ChannelCase implements IChannelCase {
             throw new AppException(ResponseCode.ILLEGAL_PARAMETER.getCode(),
                     "不支持的渠道类型: " + channelType);
         }
+    }
+
+    /** 聚合启用渠道的模型目录，按渠道路由顺序去重。 */
+    @Override
+    public ModelListResult listModelCatalog() {
+        List<ModelInfo> models = listEnabledOrdered().stream()
+                .flatMap(channel -> channel.activeModels().stream()
+                        .map(model -> ModelInfo.builder()
+                                .id(model)
+                                .object("model")
+                                .ownedBy(channel.getType())
+                                .build()))
+                .collect(java.util.stream.Collectors.toMap(
+                        ModelInfo::getId, model -> model, (first, ignored) -> first,
+                        java.util.LinkedHashMap::new))
+                .values().stream().toList();
+        return ModelListResult.builder().data(models).build();
     }
 }

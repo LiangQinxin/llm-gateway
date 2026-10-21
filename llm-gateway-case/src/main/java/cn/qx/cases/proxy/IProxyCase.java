@@ -13,10 +13,15 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter
 public interface IProxyCase {
 
     /** 解析请求并按 body.stream（缺省 Accept）确定响应形态。 */
-    ProxyRequest prepare(String rawBody, String acceptHeader);
+    default ProxyRequest prepare(String rawBody, String acceptHeader) {
+        return prepare(rawBody, acceptHeader, ProxyRequest.DEFAULT_INBOUND_PATH);
+    }
 
-    /** 一次调用渠道门面并转换为字节中立结果。 */
-    ProxyResult forward(ProxyRequest request);
+    /** 解析请求，并按入站路径记录协议入口。 */
+    ProxyRequest prepare(String rawBody, String acceptHeader, String inboundPath);
+
+    /** 认证调用方后，一次调用渠道门面并转换为字节中立结果。 */
+    ProxyResult forward(ProxyRequest request, String apiKey);
 
     /** 将结果写入 ResponseBodyEmitter；流式结果绑定取消句柄。 */
     void write(ProxyResult result, ResponseBodyEmitter emitter, HttpServletResponse response);

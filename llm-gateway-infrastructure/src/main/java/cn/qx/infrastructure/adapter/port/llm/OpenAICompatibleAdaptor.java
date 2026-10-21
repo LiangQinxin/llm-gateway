@@ -71,7 +71,7 @@ public abstract class OpenAICompatibleAdaptor implements ILlmAdaptor, IForwardin
     public ForwardResult forward(ProxyRequest request, ChannelConfig config) {
         JSONObject body = OpenAICompatSupport.applyModelMapping(request.getBody(), config.getModelMapping());
         Request httpRequest = new Request.Builder()
-                .url(trimSlash(config.getBaseUrl()) + "/chat/completions")
+                .url(trimSlash(config.getBaseUrl()) + endpointPath(request))
                 .header("Authorization", "Bearer " + config.getApiKey())
                 .header("Content-Type", "application/json")
                 .post(RequestBody.create(body.toJSONString(), JSON_MEDIA_TYPE))
@@ -101,8 +101,9 @@ public abstract class OpenAICompatibleAdaptor implements ILlmAdaptor, IForwardin
     @Override
     public StreamResult forwardStream(ProxyRequest request, ChannelConfig config) {
         JSONObject body = OpenAICompatSupport.applyModelMapping(request.getBody(), config.getModelMapping());
+        body = injectStreamOptions(body, config);
         Request httpRequest = new Request.Builder()
-                .url(trimSlash(config.getBaseUrl()) + "/chat/completions")
+                .url(trimSlash(config.getBaseUrl()) + endpointPath(request))
                 .header("Authorization", "Bearer " + config.getApiKey())
                 .post(RequestBody.create(body.toJSONString(), JSON_MEDIA_TYPE))
                 .build();
@@ -120,6 +121,38 @@ public abstract class OpenAICompatibleAdaptor implements ILlmAdaptor, IForwardin
         } catch (Exception e) {
             throw new IllegalStateException("流式转发失败: " + e.getMessage(), e);
         }
+    }
+
+    private static JSONObject injectStreamOptions(JSONObject body, ChannelConfig config) {
+        if (body == null || !body.getBooleanValue("stream")) {
+            return body;
+        }
+        JSONObject extra = config.getExtra();
+        if (extra != null && !extra.getBooleanValue("inject_stream_options", true)) {
+            return body;
+        }
+        if (body.containsKey("stream_options")) {
+            return body;
+        }
+        JSONObject copy = (JSONObject) body.clone();
+        JSONObject streamOptions = new JSONObject();
+        streamOptions.put("include_usage", true);
+        copy.put("stream_options", streamOptions);
+        return copy;
+    }
+
+    private static String endpointPath(ProxyRequest request) {
+        String inboundPath = request.getInboundPath();
+        if ("/v1/completions".equals(inboundPath)) {
+            return "/completions";
+        }
+        if ("/v1/embeddings".equals(inboundPath)) {
+            return "/embeddings";
+        }
+        if ("/v1/responses".equals(inboundPath)) {
+            return "/responses";
+        }
+        return "/chat/completions";
     }
 
     private OkHttpClient client(ChannelConfig config, boolean stream) {

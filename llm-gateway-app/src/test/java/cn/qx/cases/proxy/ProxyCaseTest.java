@@ -2,8 +2,10 @@ package cn.qx.cases.proxy;
 
 import cn.qx.api.dto.proxy.ProxyResult;
 import cn.qx.cases.channel.ChannelCase;
+import cn.qx.cases.identity.ApiKeyCase;
 import cn.qx.domain.channel.model.entity.Channel;
 import cn.qx.domain.channel.model.valobj.ProxyRequest;
+import cn.qx.domain.identity.model.entity.ApiKey;
 import cn.qx.types.exception.AppException;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONArray;
@@ -47,6 +49,10 @@ public class ProxyCaseTest {
     @Resource
     private ChannelCase channelCase;
 
+    /** API Key 用例 */
+    @Resource
+    private ApiKeyCase apiKeyCase;
+
     @Test
     public void prepare_sanitizes_messages_and_detects_stream() {
         JSONObject body = new JSONObject();
@@ -88,6 +94,10 @@ public class ProxyCaseTest {
 
     @Test
     public void forward_unary_not_found_and_stream() throws Exception {
+        ApiKey apiKey = apiKeyCase.create(ApiKey.builder()
+                .name("测试-proxy-key-" + UUID.randomUUID())
+                .quotaLimit(0L)
+                .build());
         Channel channel = channelCase.create(Channel.builder()
                 .name("测试-proxy-" + UUID.randomUUID())
                 .type("deepseek")
@@ -101,7 +111,7 @@ public class ProxyCaseTest {
                 .build());
         try {
             ProxyResult unary = proxyCase.forward(proxyCase.prepare(
-                    requestJson(MODEL, false), "application/json"));
+                    requestJson(MODEL, false), "application/json"), apiKey.getKey());
             log.info("非流式 ProxyResult: status={}, body={}", unary.getStatusCode(), unary.getRaw());
             assertEquals("非流式应 200", 200, unary.getStatusCode());
             assertTrue("非流式应 application/json", unary.getContentType().startsWith("application/json"));
@@ -109,13 +119,13 @@ public class ProxyCaseTest {
             assertTrue("原始响应应含 choices", unary.getRaw().contains("\"choices\""));
 
             ProxyResult notFound = proxyCase.forward(proxyCase.prepare(
-                    requestJson("missing-" + UUID.randomUUID(), false), "application/json"));
+                    requestJson("missing-" + UUID.randomUUID(), false), "application/json"), apiKey.getKey());
             log.info("未命中 ProxyResult: status={}, body={}", notFound.getStatusCode(), notFound.getRaw());
             assertEquals("未命中应 404", 404, notFound.getStatusCode());
             assertTrue("未命中应 OpenAI 风格错误", notFound.getRaw().contains("model_not_found"));
 
             ProxyResult streaming = proxyCase.forward(proxyCase.prepare(
-                    requestJson(MODEL, true), "*/*"));
+                    requestJson(MODEL, true), "*/*"), apiKey.getKey());
             log.info("流式 ProxyResult: status={}, cancel={}",
                     streaming.getStatusCode(), streaming.getCancel());
             assertEquals("流式应 200", 200, streaming.getStatusCode());
@@ -126,11 +136,16 @@ public class ProxyCaseTest {
             assertTrue("应含 [DONE]", sse.contains("[DONE]"));
         } finally {
             channelCase.delete(channel.getId());
+            apiKeyCase.delete(apiKey.getId());
         }
     }
 
     @Test
     public void upstream_non_2xx_error_body_is_passed_through() {
+        ApiKey apiKey = apiKeyCase.create(ApiKey.builder()
+                .name("测试-proxy-error-key-" + UUID.randomUUID())
+                .quotaLimit(0L)
+                .build());
         Channel channel = channelCase.create(Channel.builder()
                 .name("测试-proxy-error-" + UUID.randomUUID())
                 .type("deepseek")
@@ -145,13 +160,14 @@ public class ProxyCaseTest {
         try {
             String model = channel.activeModels().get(0);
             ProxyResult result = proxyCase.forward(proxyCase.prepare(
-                    requestJson(model, false), "application/json"));
+                    requestJson(model, false), "application/json"), apiKey.getKey());
             log.info("上游错误透传: status={}, body={}", result.getStatusCode(), result.getRaw());
             assertTrue("上游非 2xx 应保留状态码", result.getStatusCode() >= 400);
             assertTrue("错误体应按 JSON 透传", result.getContentType().startsWith("application/json"));
             assertTrue("错误体应保留 upstream error", result.getRaw().contains("\"error\""));
         } finally {
             channelCase.delete(channel.getId());
+            apiKeyCase.delete(apiKey.getId());
         }
     }
 

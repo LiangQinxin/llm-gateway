@@ -39,3 +39,4 @@ build/
 /.idea/
 /docs/三表基础实现-设计计划.md
 /.scratch/
+llm-gateway-app/data/

@@ -51,7 +51,7 @@ public class ApiKeyCaseTest {
         log.info("创建密钥: {}", JSON.toJSONString(created));
         try {
             assertNotNull("应自动生成密钥", created.getKey());
-            assertTrue("应使用 sk-waliapi 前缀", created.getKey().startsWith("sk-llmqx-"));
+            assertTrue("应使用 sk-waliapi 前缀", created.getKey().startsWith("sk-waliapi-"));
             assertEquals("默认启用", Integer.valueOf(1), created.getStatus());
             assertEquals("默认配额使用为 0", Long.valueOf(0), created.getQuotaUsed());
 
@@ -89,10 +89,10 @@ public class ApiKeyCaseTest {
             assertEquals("0=不限时应继续累加", Long.valueOf(17), apiKeyCase.get(created.getId()).getQuotaUsed());
         }
         finally {
-            log.info("执行完成");
-//            apiKeyCase.delete(created.getId());
+            apiKeyCase.delete(created.getId());
+            log.info("已清理测试密钥: id={}", created.getId());
         }
-//        assertThrows("删除后查询应报不存在", AppException.class, () -> apiKeyCase.get(created.getId()));
+        assertThrows("删除后查询应报不存在", AppException.class, () -> apiKeyCase.get(created.getId()));
     }
 
     @Test

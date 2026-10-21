@@ -1,5 +1,6 @@
 package cn.qx.api;
 
+import cn.qx.api.dto.channel.ModelListResult;
 import cn.qx.domain.channel.model.entity.Channel;
 import cn.qx.domain.channel.model.valobj.TestResult;
 
@@ -33,4 +34,7 @@ public interface IChannelCase {
 
     /** 渠道连通性测试（真实上游端点）。 */
     TestResult testChannel(String id);
+
+    /** 聚合启用渠道的模型目录。 */
+    ModelListResult listModelCatalog();
 }

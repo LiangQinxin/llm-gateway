@@ -69,6 +69,10 @@ public class DispatchOutcome {
 - `ThreadLocalRandom.current()` 作为数组映射采样的随机源（无锁、无线程竞争、无创建开销）；
 - 流式/非流式统一 `ResponseBodyEmitter`、字节级透传、非 2xx 错误体透传——全部沿用 ADR-0008。
 
+### 8. 后续协议扩展
+
+ADR-0011 在 `ProxyRequest` 上扩展入站协议标签与数据面路径，用于适配器选择有序原生端点；channel 域仍不解析 body，本 ADR 的「路由决策归 channel 域、ProxyCase 只编排」边界不变。
+
 ## Considered Options
 
 - **route_plan 留 proxy 域（ADR-0007 原方案）**：否决。门面化后 ProxyCase 变薄，渠道相关知识不外泄；用户拍板「调度 + model 重写 + 适配器路由 + 响应组装全部在渠道领域完成」。

@@ -16,6 +16,9 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class ProxyRequest {
 
+    /** 默认入站路径 */
+    public static final String DEFAULT_INBOUND_PATH = "/v1/chat/completions";
+
     /** 下游请求的模型名（映射前原始值） */
     private String model;
 
@@ -24,4 +27,11 @@ public class ProxyRequest {
 
     /** 是否流式转发 */
     private boolean stream;
+
+    /** 入站数据面路径（ADR-0011 扩展：供适配器选择原生端点，channel 域仍不解析 body） */
+    private String inboundPath;
+
+    public ProxyRequest(String model, JSONObject body, boolean stream) {
+        this(model, body, stream, DEFAULT_INBOUND_PATH);
+    }
 }

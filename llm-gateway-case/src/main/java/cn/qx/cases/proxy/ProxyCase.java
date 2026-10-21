@@ -1,20 +1,27 @@
 package cn.qx.cases.proxy;
 
 import cn.qx.api.dto.proxy.ProxyResult;
+import cn.qx.api.IApiKeyCase;
 import cn.qx.domain.channel.adapter.port.IDispatchInvoker;
 import cn.qx.domain.channel.model.valobj.DispatchOutcome;
 import cn.qx.domain.channel.model.valobj.ForwardResult;
 import cn.qx.domain.channel.model.valobj.ProxyRequest;
 import cn.qx.domain.channel.model.valobj.StreamResult;
+import cn.qx.domain.identity.model.entity.ApiKey;
+import cn.qx.domain.proxy.service.ISseUsageParserService;
+import cn.qx.types.enums.AuthFailureCode;
+import cn.qx.types.exception.AppException;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONObject;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter;
 
 import jakarta.servlet.http.HttpServletResponse;
+import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -37,9 +44,17 @@ public class ProxyCase implements IProxyCase {
     @Resource
     private IDispatchInvoker dispatchInvoker;
 
+    /** 调用方身份认证与配额用例 */
+    @Resource
+    private IApiKeyCase apiKeyCase;
+
+    /** SSE usage 解析器提供器（原型 Bean） */
+    @Resource
+    private ObjectProvider<ISseUsageParserService> usageParserProvider;
+
     /** 解析请求并按 body.stream（缺省 Accept）确定响应形态。 */
     @Override
-    public ProxyRequest prepare(String rawBody, String acceptHeader) {
+    public ProxyRequest prepare(String rawBody, String acceptHeader, String inboundPath) {
         JSONObject body;
         try {
             body = JSON.parseObject(rawBody);
@@ -53,17 +68,25 @@ public class ProxyCase implements IProxyCase {
         if (model == null || model.isBlank()) {
             throw new ProxyException(400, "invalid_request_error", "invalid_request_error", "缺少 model");
         }
+        String path = inboundPath == null || inboundPath.isBlank()
+                ? ProxyRequest.DEFAULT_INBOUND_PATH
+                : inboundPath;
+        boolean streamCapable = !"/v1/embeddings".equals(path);
         Boolean streamField = body.getBoolean("stream");
-        boolean stream = streamField != null ? streamField : acceptsEventStream(acceptHeader);
-        body.put("stream", stream);
+        boolean stream = streamCapable
+                && (streamField != null ? streamField : acceptsEventStream(acceptHeader));
+        if (streamCapable) {
+            body.put("stream", stream);
+        }
         MessageSanitizer.sanitizeMessages(body);
         log.info("入站请求: model={}, stream={}, body={}", model, stream, body);
-        return new ProxyRequest(model, body, stream);
+        return new ProxyRequest(model, body, stream, path);
     }
 
     /** 一次调用渠道门面并转换为字节中立结果。 */
     @Override
-    public ProxyResult forward(ProxyRequest request) {
+    public ProxyResult forward(ProxyRequest request, String apiKey) {
+        ApiKey identity = authenticate(apiKey, request.getModel());
         DispatchOutcome outcome = dispatchInvoker.invoke(request);
         if (!outcome.isRouted()) {
             return ProxyResult.builder()
@@ -74,10 +97,15 @@ public class ProxyCase implements IProxyCase {
         }
         if (request.isStream()) {
             StreamResult streamResult = outcome.getStreaming();
+            InputStream body = streamResult.getBody();
+            if (isSuccessful(streamResult.getStatusCode()) && body != null) {
+                body = new UsageTrackingInputStream(
+                        body, usageParserProvider.getObject(), total -> recordUsage(identity.getId(), total));
+            }
             return ProxyResult.builder()
                     .statusCode(streamResult.getStatusCode())
                     .contentType(isSuccessful(streamResult.getStatusCode()) ? SSE_CONTENT_TYPE : JSON_CONTENT_TYPE)
-                    .stream(streamResult.getBody())
+                    .stream(body)
                     .cancel(streamResult.getCancel() == null ? null : streamResult.getCancel()::cancel)
                     .build();
         }
@@ -87,11 +115,46 @@ public class ProxyCase implements IProxyCase {
         }
         String raw = forwardResult.getRaw();
         log.info("非流式响应: status={}, raw={}", forwardResult.getStatusCode(), raw);
+        if (isSuccessful(forwardResult.getStatusCode()) && forwardResult.getUsage() != null) {
+            recordUsage(identity.getId(), forwardResult.getUsage().getTotalTokens());
+        }
         return ProxyResult.builder()
                 .statusCode(forwardResult.getStatusCode())
                 .contentType(JSON_CONTENT_TYPE)
                 .raw(raw)
                 .build();
+    }
+
+    private ApiKey authenticate(String apiKey, String model) {
+        try {
+            return apiKeyCase.authenticate(apiKey, model, null);
+        } catch (AppException e) {
+            switch (AuthFailureCode.fromCode(e.getCode())) {
+                case MODEL_NOT_FOUND -> throw new ProxyException(
+                        404, "model_not_found", "invalid_request_error",
+                        "The model '" + model + "' does not exist or you don't have access to it");
+                case INSUFFICIENT_QUOTA -> throw new ProxyException(
+                        403, "insufficient_quota", "insufficient_quota", "调用方配额已用尽");
+                case FORBIDDEN -> throw new ProxyException(
+                        403, "forbidden", "invalid_request_error", "调用方无权访问该资源");
+                case INVALID_API_KEY -> throw new ProxyException(
+                        401, "invalid_api_key", "invalid_request_error", "调用方 API Key 无效");
+            }
+            throw new IllegalStateException("未知认证失败码: " + e.getCode());
+        }
+    }
+
+    private void recordUsage(String apiKeyId, long totalTokens) {
+        if (totalTokens <= 0) {
+            return;
+        }
+        try {
+            apiKeyCase.recordUsage(apiKeyId, totalTokens);
+            log.info("配额已记账: apiKeyId={}, totalTokens={}", apiKeyId, totalTokens);
+        } catch (Exception e) {
+            log.warn("配额记账失败（best-effort）: apiKeyId={}, totalTokens={}, error={}",
+                    apiKeyId, totalTokens, e.getMessage());
+        }
     }
 
     /** 将结果写入 ResponseBodyEmitter；流式结果绑定取消句柄。 */
@@ -188,5 +251,54 @@ public class ProxyCase implements IProxyCase {
 
     private static boolean isSuccessful(int status) {
         return status >= 200 && status < 300;
+    }
+
+    /**
+     * 流式 usage tee：读取上游字节时旁路解析，EOF 后一次性记账；任何解析异常都静默忽略。
+     */
+    private static final class UsageTrackingInputStream extends FilterInputStream {
+
+        private final ISseUsageParserService parser;
+        private final java.util.function.LongConsumer recorder;
+        private boolean recorded;
+
+        private UsageTrackingInputStream(InputStream input,
+                                         ISseUsageParserService parser,
+                                         java.util.function.LongConsumer recorder) {
+            super(input);
+            this.parser = parser;
+            this.recorder = recorder;
+        }
+
+        @Override
+        public int read() throws IOException {
+            int value = super.read();
+            if (value == -1) {
+                recordUsageAtEof();
+            } else {
+                parser.accept(new byte[]{(byte) value});
+            }
+            return value;
+        }
+
+        @Override
+        public int read(byte[] buffer, int offset, int length) throws IOException {
+            int read = super.read(buffer, offset, length);
+            if (read == -1) {
+                recordUsageAtEof();
+            } else if (read > 0) {
+                parser.accept(Arrays.copyOfRange(buffer, offset, offset + read));
+            }
+            return read;
+        }
+
+        private void recordUsageAtEof() {
+            if (recorded) {
+                return;
+            }
+            recorded = true;
+            parser.finish();
+            parser.usageTokens().ifPresent(recorder::accept);
+        }
     }
 }

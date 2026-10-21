@@ -4,6 +4,7 @@ import cn.qx.api.IApiKeyCase;
 import cn.qx.domain.identity.adapter.repository.IApiKeyRepository;
 import cn.qx.domain.identity.model.entity.ApiKey;
 import cn.qx.types.common.TimeUtils;
+import cn.qx.types.enums.AuthFailureCode;
 import cn.qx.types.enums.ResponseCode;
 import cn.qx.types.exception.AppException;
 import com.alibaba.fastjson2.JSON;
@@ -97,14 +98,22 @@ public class ApiKeyCase implements IApiKeyCase {
     @Override
     public ApiKey authenticate(String key, String model, String channelId) {
         if (isBlank(key)) {
-            throw new AppException(ResponseCode.UNAUTHORIZED.getCode(), "缺少 API Key");
+            throw new AppException(AuthFailureCode.INVALID_API_KEY.getCode(), "缺少 API Key");
         }
         ApiKey apiKey = apiKeyRepository.authenticate(key, TimeUtils.now());
         if (apiKey == null) {
-            throw new AppException(ResponseCode.UNAUTHORIZED.getCode(), "API Key 无效、已禁用或已过期");
+            throw new AppException(AuthFailureCode.INVALID_API_KEY.getCode(), "API Key 无效、已禁用或已过期");
         }
-        if (!apiKey.allowsModel(model) || !apiKey.allowsChannel(channelId)) {
-            throw new AppException(ResponseCode.FORBIDDEN.getCode(), "API Key 无权访问该模型或渠道");
+        if (!apiKey.allowsModel(model)) {
+            throw new AppException(AuthFailureCode.MODEL_NOT_FOUND.getCode(), "API Key 无权访问该模型");
+        }
+        if (channelId != null && !apiKey.allowsChannel(channelId)) {
+            throw new AppException(AuthFailureCode.FORBIDDEN.getCode(), "API Key 无权访问该渠道");
+        }
+        long used = apiKey.getQuotaUsed() == null ? 0L : apiKey.getQuotaUsed();
+        long limit = apiKey.getQuotaLimit() == null ? 0L : apiKey.getQuotaLimit();
+        if (limit > 0 && used >= limit) {
+            throw new AppException(AuthFailureCode.INSUFFICIENT_QUOTA.getCode(), "API Key 配额已用尽");
         }
         return apiKey;
     }

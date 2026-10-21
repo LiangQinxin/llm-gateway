@@ -33,13 +33,40 @@ public class ProxyController {
     public ResponseBodyEmitter chatCompletions(@RequestBody String body,
                                                HttpServletRequest request,
                                                HttpServletResponse response) {
+        return proxy(body, request, response);
+    }
+
+    @PostMapping("/v1/completions")
+    public ResponseBodyEmitter completions(@RequestBody String body,
+                                           HttpServletRequest request,
+                                           HttpServletResponse response) {
+        return proxy(body, request, response);
+    }
+
+    @PostMapping("/v1/embeddings")
+    public ResponseBodyEmitter embeddings(@RequestBody String body,
+                                          HttpServletRequest request,
+                                          HttpServletResponse response) {
+        return proxy(body, request, response);
+    }
+
+    @PostMapping("/v1/responses")
+    public ResponseBodyEmitter responses(@RequestBody String body,
+                                         HttpServletRequest request,
+                                         HttpServletResponse response) {
+        return proxy(body, request, response);
+    }
+
+    private ResponseBodyEmitter proxy(String body, HttpServletRequest request, HttpServletResponse response) {
         ResponseBodyEmitter emitter = new ResponseBodyEmitter();
         taskExecutor.execute(() -> {
             try {
-                ProxyRequest proxyRequest = proxyCase.prepare(body, request.getHeader("Accept"));
+                ProxyRequest proxyRequest = proxyCase.prepare(
+                        body, request.getHeader("Accept"), request.getRequestURI());
                 log.info("数据面请求: path={}, model={}, stream={}",
                         request.getRequestURI(), proxyRequest.getModel(), proxyRequest.isStream());
-                ProxyResult result = proxyCase.forward(proxyRequest);
+                String apiKey = (String) request.getAttribute(ApiKeyFilter.REQUEST_ATTRIBUTE);
+                ProxyResult result = proxyCase.forward(proxyRequest, apiKey);
                 proxyCase.write(result, emitter, response);
             } catch (ProxyException e) {
                 proxyCase.writeError(e, emitter, response);

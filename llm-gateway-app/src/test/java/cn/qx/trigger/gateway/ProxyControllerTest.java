@@ -1,9 +1,13 @@
 package cn.qx.trigger.gateway;
 
 import cn.qx.cases.channel.ChannelCase;
+import cn.qx.cases.identity.ApiKeyCase;
 import cn.qx.domain.channel.model.entity.Channel;
+import cn.qx.domain.identity.model.entity.ApiKey;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -47,10 +51,32 @@ public class ProxyControllerTest {
     @Resource
     private ChannelCase channelCase;
 
+    /** API Key 用例 */
+    @Resource
+    private ApiKeyCase apiKeyCase;
+
+    /** 当前测试使用的新密钥 */
+    private ApiKey apiKey;
+
     /** HTTP 测试客户端（连接超时 10 秒） */
     private final HttpClient client = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(10))
             .build();
+
+    @Before
+    public void createCallerKey() {
+        apiKey = apiKeyCase.create(ApiKey.builder()
+                .name("测试-proxy-controller-key-" + UUID.randomUUID())
+                .quotaLimit(0L)
+                .build());
+    }
+
+    @After
+    public void deleteCallerKey() {
+        if (apiKey != null) {
+            apiKeyCase.delete(apiKey.getId());
+        }
+    }
 
     @Test
     public void missing_model_returns_openai_400() throws Exception {
@@ -155,6 +181,7 @@ public class ProxyControllerTest {
         return HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + "/v1/chat/completions"))
                 .header("Content-Type", "application/json")
                 .header("Accept", accept)
+                .header("Authorization", "Bearer " + apiKey.getKey())
                 .timeout(Duration.ofSeconds(120))
                 .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8))
                 .build();
