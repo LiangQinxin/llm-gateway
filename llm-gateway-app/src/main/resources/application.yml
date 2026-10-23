@@ -11,3 +11,16 @@ server:
   tomcat:
     threads:
       max: 200
+
+security:
+  audit:
+    enabled: true
+    mode: warn
+    block-critical: false
+    scanners:
+      credential: true
+      path: true
+      unicode: false
+      network: false
+      tool-risk: false
+      tracking: false

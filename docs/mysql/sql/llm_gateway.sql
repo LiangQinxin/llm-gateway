@@ -842,6 +842,29 @@ UNLOCK TABLES;
 
 
 
+# 转储表 security_audit_finding
+# ------------------------------------------------------------
+
+DROP TABLE IF EXISTS `security_audit_finding`;
+
+CREATE TABLE `security_audit_finding` (
+  `id` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '发现ID',
+  `log_id` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '关联RequestLog.id',
+  `phase` varchar(16) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '扫描阶段: request/response',
+  `category` varchar(128) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '类别集合(逗号拼接)',
+  `rule_id` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '规则ID',
+  `severity` varchar(16) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '严重度',
+  `title` varchar(128) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '规则标题',
+  `description` text COLLATE utf8mb4_unicode_ci COMMENT '规则描述',
+  `location` varchar(512) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'JSONPath或原文偏移',
+  `evidence_masked` text COLLATE utf8mb4_unicode_ci COMMENT '打码后证据',
+  `evidence_hash` char(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '证据SHA-256',
+  `action` varchar(16) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'allow/warn/redact/block',
+  `created_at` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '创建时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_security_finding_log_id` (`log_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='安全审计发现明细表';
+
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
 /*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
