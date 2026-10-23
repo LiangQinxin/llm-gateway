@@ -27,6 +27,7 @@ import java.util.UUID;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -119,29 +120,31 @@ public class ChannelFailoverServiceTest {
     }
 
     /**
-     * 请求本身错误（400）直接透传，不触发 failover。
+     * 请求本身错误（400/404/422）直接透传，不触发 failover。
      */
     @Test
     public void request_error_is_passed_through_without_failover() throws Exception {
-        MockWebServer server = new MockWebServer();
-        server.start();
-        server.enqueue(error(400, "bad request"));
-        server.enqueue(success());
-        String model = uniqueModel();
-        List<String> channelIds = new ArrayList<>();
-        try {
-            create(server, model, "primary-400", 1000, 10, channelIds);
-            create(server, model, "backup-400", 900, 1, channelIds);
+        for (int status : List.of(400, 404, 422)) {
+            MockWebServer server = new MockWebServer();
+            server.start();
+            server.enqueue(error(status, "bad request " + status));
+            server.enqueue(success());
+            String model = uniqueModel();
+            List<String> channelIds = new ArrayList<>();
+            try {
+                create(server, model, "primary-" + status, 1000, 10, channelIds);
+                create(server, model, "backup-" + status, 900, 1, channelIds);
 
-            DispatchOutcome outcome = dispatchInvoker.invoke(request(model, false));
-            log.info("400 不切换: status={}, requests={}",
-                    outcome.getUnary().getStatusCode(), server.getRequestCount());
+                DispatchOutcome outcome = dispatchInvoker.invoke(request(model, false));
+                log.info("{} 不切换: status={}, requests={}", status,
+                        outcome.getUnary().getStatusCode(), server.getRequestCount());
 
-            assertEquals(400, outcome.getUnary().getStatusCode());
-            assertTrue(outcome.getUnary().getRaw().contains("bad request"));
-            assertEquals("400 不应尝试备用渠道", 1, server.getRequestCount());
-        } finally {
-            cleanup(server, channelIds);
+                assertEquals(status, outcome.getUnary().getStatusCode());
+                assertTrue(outcome.getUnary().getRaw().contains("bad request " + status));
+                assertEquals(status + " 不应尝试备用渠道", 1, server.getRequestCount());
+            } finally {
+                cleanup(server, channelIds);
+            }
         }
     }
 
@@ -202,6 +205,39 @@ public class ChannelFailoverServiceTest {
             assertTrue(sse.contains("[DONE]"));
             assertEquals(1, primaryServer.getRequestCount());
             assertEquals(1, backupServer.getRequestCount());
+        } finally {
+            primaryServer.shutdown();
+            cleanup(backupServer, channelIds);
+        }
+    }
+
+    /**
+     * 流式队列耗尽时，最后一个 HTTP 错误按 ADR-0012 包装为 unary ForwardResult。
+     */
+    @Test
+    public void stream_http_exhaustion_returns_last_error_as_unary() throws Exception {
+        MockWebServer primaryServer = new MockWebServer();
+        MockWebServer backupServer = new MockWebServer();
+        primaryServer.start();
+        backupServer.start();
+        primaryServer.enqueue(error(500, "stream primary failed"));
+        backupServer.enqueue(error(503, "stream backup failed"));
+        String model = uniqueModel();
+        List<String> channelIds = new ArrayList<>();
+        try {
+            create(primaryServer, model, "stream-primary", 1000, 10, channelIds);
+            create(backupServer, model, "stream-backup", 900, 1, channelIds);
+
+            DispatchOutcome outcome = dispatchInvoker.invoke(request(model, true));
+            log.info("流式 HTTP 耗尽: unaryStatus={}, raw={}, streaming={}",
+                    outcome.getUnary().getStatusCode(), outcome.getUnary().getRaw(),
+                    outcome.getStreaming());
+
+            assertEquals(503, outcome.getUnary().getStatusCode());
+            assertTrue(outcome.getUnary().getRaw().contains("stream backup failed"));
+            assertNull(outcome.getStreaming());
+            assertTrue(outcome.getErrorMessage().contains("HTTP 500"));
+            assertTrue(outcome.getErrorMessage().contains("HTTP 503"));
         } finally {
             primaryServer.shutdown();
             cleanup(backupServer, channelIds);

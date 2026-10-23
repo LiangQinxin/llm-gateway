@@ -35,7 +35,8 @@ public class NetworkScanner implements ISubScanner {
     private static final Pattern DOMAIN = Pattern.compile(
             "(?i)\\b(?:https?://)?([a-z0-9](?:[a-z0-9.-]*[a-z0-9])?\\.[a-z]{2,})\\b");
     private static final Pattern IPV4 = Pattern.compile("\\b(\\d{1,3}(?:\\.\\d{1,3}){3})\\b");
-    private static final Pattern IPV6 = Pattern.compile("(?i)\\b((?:fe80|fd)[0-9a-f:]*)\\b");
+    private static final Pattern IPV6 = Pattern.compile(
+            "(?i)\\b((?:fe[89ab][0-9a-f]:[0-9a-f:]*|fd[0-9a-f:]*))\\b");
 
     @Override
     public String scannerName() {

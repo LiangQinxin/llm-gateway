@@ -1,10 +1,14 @@
-package cn.qx.domain.channel.service.selector;
+package cn.qx.domain.channel.service.selector.impl;
 
 import cn.qx.domain.channel.model.entity.Channel;
-import cn.qx.domain.channel.service.selector.impl.ChannelSelectorImpl;
+import cn.qx.domain.channel.service.selector.IChannelSelector;
 import com.alibaba.fastjson2.JSON;
+import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.junit4.SpringRunner;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -18,13 +22,16 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 /**
- * ChannelSelector 纯函数测试：队列内容与统计性质，不启 Spring 容器。
+ * ChannelSelector 容器装配测试：经接口验证队列内容与统计性质。
  */
 @Slf4j
+@RunWith(SpringRunner.class)
+@SpringBootTest
 public class ChannelSelectorImplTest {
 
     /** 被测选择器 */
-    private final IChannelSelector selector = new ChannelSelectorImpl();
+    @Resource
+    private IChannelSelector selector;
 
     /**
      * 模型过滤：精确模型、空模型通配、mapping key 命中，其余排除。

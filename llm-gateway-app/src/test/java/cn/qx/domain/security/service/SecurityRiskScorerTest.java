@@ -5,8 +5,12 @@ import cn.qx.domain.security.model.valobj.ScanFinding;
 import cn.qx.domain.security.model.valobj.SecurityCategory;
 import cn.qx.domain.security.model.valobj.SecuritySeverity;
 import com.alibaba.fastjson2.JSON;
+import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.junit4.SpringRunner;
 
 import java.util.List;
 
@@ -16,7 +20,12 @@ import static org.junit.Assert.assertEquals;
  * 三段评分纯函数测试。
  */
 @Slf4j
+@RunWith(SpringRunner.class)
+@SpringBootTest
 public class SecurityRiskScorerTest {
+
+    @Resource
+    private SecurityRiskScorer riskScorer;
 
     @Test
     public void score_uses_max_base_and_combination_bonuses() {
@@ -24,7 +33,7 @@ public class SecurityRiskScorerTest {
                 finding(SecuritySeverity.CRITICAL, SecurityCategory.CREDENTIAL),
                 finding(SecuritySeverity.MEDIUM, SecurityCategory.EXFIL),
                 finding(SecuritySeverity.LOW, SecurityCategory.SENSITIVE_FILE));
-        SecurityRiskScorer.RiskAssessment assessment = SecurityRiskScorer.score(findings);
+        SecurityRiskScorer.RiskAssessment assessment = riskScorer.score(findings);
         log.info("评分组合: {}", JSON.toJSONString(assessment));
         assertEquals(90 + 25 + 25, assessment.score());
         assertEquals(RiskLevel.CRITICAL, assessment.level());

@@ -39,7 +39,7 @@ public class CredentialScanner implements ISubScanner {
             rule("credential_aws_access", "AWS Access Key",
                     "\\bAKIA[0-9A-Z]{16}\\b", SecuritySeverity.CRITICAL, false),
             rule("credential_aws_secret", "AWS Secret Key",
-                    "(?i)\\baws_secret_access_key\\s*[=:]\\s*[A-Za-z0-9+/=]{20,}",
+                    "(?i)\\baws_secret_access_key\\b\\s*[=:]\\s*[A-Za-z0-9+/=]{20,}",
                     SecuritySeverity.CRITICAL, false),
             rule("credential_github_pat", "GitHub Personal Access Token",
                     "\\bghp_[a-zA-Z0-9]{36}\\b", SecuritySeverity.CRITICAL, false),
@@ -114,7 +114,7 @@ public class CredentialScanner implements ISubScanner {
         if (normalized.equals(key.toLowerCase(Locale.ROOT))) {
             return false;
         }
-        if (EXCLUDED_VALUES.stream().anyMatch(normalized::contains)
+        if (EXCLUDED_VALUES.contains(normalized)
                 || normalized.startsWith("your-")
                 || (normalized.startsWith("<") && normalized.endsWith(">"))) {
             return false;

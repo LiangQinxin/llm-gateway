@@ -4,6 +4,7 @@ import cn.qx.domain.security.SecurityTestSupport;
 import cn.qx.domain.security.model.valobj.AuditResult;
 import cn.qx.domain.security.model.valobj.ScanRequest;
 import cn.qx.domain.security.model.valobj.ScanSettings;
+import cn.qx.domain.security.model.valobj.ScanPhase;
 import cn.qx.domain.security.model.valobj.SecurityAction;
 import cn.qx.domain.security.model.valobj.SecurityMode;
 import com.alibaba.fastjson2.JSON;
@@ -142,5 +143,22 @@ public class SecurityScannerEngineTest {
         assertTrue(result.getFindings().isEmpty());
         assertEquals(SecurityAction.ALLOW, result.getFinalAction());
         assertFalse(result.isBlocked());
+    }
+
+    /**
+     * RESPONSE 仅预留端口，本轮不执行响应内容扫描。
+     */
+    @Test
+    public void response_phase_is_reserved_and_clean() {
+        ScanRequest request = ScanRequest.builder()
+                .body("AKIA1234567890ABCDEF")
+                .phase(ScanPhase.RESPONSE)
+                .settings(SecurityTestSupport.credentialOnly(SecurityMode.BLOCK))
+                .build();
+        AuditResult result = securityScanner.scan(request);
+        log.info("RESPONSE 预留结果: {}", JSON.toJSONString(result));
+        assertEquals(ScanPhase.RESPONSE, result.getPhase());
+        assertTrue(result.getFindings().isEmpty());
+        assertEquals(SecurityAction.ALLOW, result.getFinalAction());
     }
 }

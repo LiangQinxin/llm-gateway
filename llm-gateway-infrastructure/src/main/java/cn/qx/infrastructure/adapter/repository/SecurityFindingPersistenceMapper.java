@@ -4,6 +4,7 @@ import cn.qx.domain.security.model.valobj.ScanFinding;
 import cn.qx.domain.security.model.valobj.ScanPhase;
 import cn.qx.domain.security.model.valobj.SecurityCategory;
 import cn.qx.infrastructure.dao.po.SecurityFindingPO;
+import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -15,15 +16,13 @@ import java.util.stream.Collectors;
 /**
  * ScanFinding → SecurityFindingPO 映射：类别拼接、证据打码与哈希。
  */
-public final class SecurityFindingPersistenceMapper {
+@Component
+public class SecurityFindingPersistenceMapper {
 
-    private SecurityFindingPersistenceMapper() {
-    }
-
-    public static SecurityFindingPO toPO(String logId,
-                                         ScanPhase phase,
-                                         ScanFinding finding,
-                                         String createdAt) {
+    public SecurityFindingPO toPO(String logId,
+                                  ScanPhase phase,
+                                  ScanFinding finding,
+                                  String createdAt) {
         return SecurityFindingPO.builder()
                 .id(UUID.randomUUID().toString())
                 .logId(logId)
@@ -47,7 +46,7 @@ public final class SecurityFindingPersistenceMapper {
         String evidence = finding.getEvidence() == null ? "" : finding.getEvidence();
         evidence = evidence
                 .replaceAll("[\\u200B-\\u200D\\uFEFF\\u202A-\\u202E\\u2066-\\u2069\\uFE00-\\uFE0F\\uE000-\\uF8FF]", "")
-                .replaceAll("[A-Za-z0-9_+\\-/=]{6,}", "***");
+                .replaceAll("[A-Za-z0-9_+\\-/=]{4,}", "***");
         return evidence;
     }
 

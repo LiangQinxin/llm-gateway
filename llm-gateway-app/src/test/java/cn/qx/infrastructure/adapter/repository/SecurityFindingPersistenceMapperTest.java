@@ -1,4 +1,4 @@
-package cn.qx.domain.security.service;
+package cn.qx.infrastructure.adapter.repository;
 
 import cn.qx.domain.security.model.valobj.FindingAction;
 import cn.qx.domain.security.model.valobj.ScanFinding;
@@ -8,8 +8,12 @@ import cn.qx.domain.security.model.valobj.SecuritySeverity;
 import cn.qx.infrastructure.adapter.repository.SecurityFindingPersistenceMapper;
 import cn.qx.infrastructure.dao.po.SecurityFindingPO;
 import com.alibaba.fastjson2.JSON;
+import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.junit4.SpringRunner;
 
 import java.util.List;
 
@@ -22,7 +26,12 @@ import static org.junit.Assert.assertTrue;
  * ScanFinding → SecurityFindingPO 持久化映射测试。
  */
 @Slf4j
+@RunWith(SpringRunner.class)
+@SpringBootTest
 public class SecurityFindingPersistenceMapperTest {
+
+    @Resource
+    private SecurityFindingPersistenceMapper mapper;
 
     @Test
     public void maps_categories_masked_evidence_hash_and_action() {
@@ -37,7 +46,7 @@ public class SecurityFindingPersistenceMapperTest {
                 .evidence("password=abc12345 sk-proj-abcdefghijklmnopqrstuvwx\u200B")
                 .action(FindingAction.WARN)
                 .build();
-        SecurityFindingPO po = SecurityFindingPersistenceMapper.toPO(
+        SecurityFindingPO po = mapper.toPO(
                 "log-1", ScanPhase.REQUEST, finding, "2026-10-23T20:00:00+08:00");
         log.info("安全发现 PO: {}", JSON.toJSONString(po));
 

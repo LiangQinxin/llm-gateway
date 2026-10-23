@@ -39,7 +39,7 @@ public class PathScannerTest {
     public void sensitive_paths_and_traversal_are_detected() {
         String body = """
                 cat ~/.ssh/id_rsa /etc/passwd C:\\Users\\alice\\.ssh\\id_rsa
-                database.yml ../../etc/passwd %2e%2e%2f%2e%2e%2fetc
+                database.yml ../../etc/passwd %2e%2e%2f%2e%2e%2fetc %2e%2e%5c%2e%2e%5cwindows
                 """;
         AuditResult result = securityScanner.scan(ScanRequest.of(
                 body, SecurityTestSupport.pathOnly(SecurityMode.WARN)));

@@ -2,6 +2,7 @@ package cn.qx.domain.security.service;
 
 import cn.qx.domain.security.adapter.port.ISubScanner;
 import cn.qx.domain.security.model.valobj.AuditResult;
+import cn.qx.domain.security.model.valobj.FindingAction;
 import cn.qx.domain.security.model.valobj.ScanFinding;
 import cn.qx.domain.security.model.valobj.ScanPhase;
 import cn.qx.domain.security.model.valobj.ScanRequest;
@@ -31,10 +32,17 @@ public class SecurityScannerImpl implements ISecurityScanner {
 
     private final List<ISubScanner> scanners;
     private final ScanSettings defaultSettings;
+    private final SecurityRiskScorer riskScorer;
+    private final SecurityPolicy securityPolicy;
 
-    public SecurityScannerImpl(List<ISubScanner> scanners, ScanSettings defaultSettings) {
+    public SecurityScannerImpl(List<ISubScanner> scanners,
+                               ScanSettings defaultSettings,
+                               SecurityRiskScorer riskScorer,
+                               SecurityPolicy securityPolicy) {
         this.scanners = List.copyOf(scanners);
         this.defaultSettings = defaultSettings;
+        this.riskScorer = riskScorer;
+        this.securityPolicy = securityPolicy;
     }
 
     @Override
@@ -51,6 +59,9 @@ public class SecurityScannerImpl implements ISecurityScanner {
                 ? defaultSettings : request.getSettings();
         if (body == null || body.isBlank() || settings == null || !settings.isEnabled()) {
             return AuditResult.clean(phase, "clean: scan disabled or empty body");
+        }
+        if (phase == ScanPhase.RESPONSE) {
+            return AuditResult.clean(phase, "clean: response scanning is not enabled");
         }
 
         TraversalState state = new TraversalState();
@@ -73,11 +84,12 @@ public class SecurityScannerImpl implements ISecurityScanner {
             }
         }
         List<ScanFinding> deduplicated = deduplicate(findings);
-        SecurityRiskScorer.RiskAssessment assessment = SecurityRiskScorer.score(deduplicated);
+        SecurityRiskScorer.RiskAssessment assessment = riskScorer.score(deduplicated);
         List<ScanFinding> actioned = applyActions(deduplicated, settings);
-        boolean anyRedactable = actioned.stream().anyMatch(ScanFinding::isRedactable);
-        SecurityAction finalAction = SecurityPolicy.globalAction(
-                assessment.level(), anyRedactable, settings.getMode(), settings.isBlockCritical());
+        boolean anyRedact = actioned.stream()
+                .anyMatch(finding -> finding.getAction() == FindingAction.REDACT);
+        SecurityAction finalAction = securityPolicy.globalAction(
+                assessment.level(), anyRedact, settings.getMode(), settings.isBlockCritical());
         String summary = summary(actioned, assessment, state);
         log.info("安全扫描完成: phase={}, score={}, level={}, action={}, findings={}, summary={}",
                 phase, assessment.score(), assessment.level(), finalAction,
@@ -151,10 +163,10 @@ public class SecurityScannerImpl implements ISecurityScanner {
         return new ArrayList<>(selected.values());
     }
 
-    private static List<ScanFinding> applyActions(List<ScanFinding> findings, ScanSettings settings) {
+    private List<ScanFinding> applyActions(List<ScanFinding> findings, ScanSettings settings) {
         return findings.stream()
                 .map(finding -> finding.toBuilder()
-                        .action(SecurityPolicy.actionFor(
+                        .action(securityPolicy.actionFor(
                                 finding.getSeverity(), finding.isRedactable(),
                                 settings.getMode(), settings.isBlockCritical()))
                         .build())

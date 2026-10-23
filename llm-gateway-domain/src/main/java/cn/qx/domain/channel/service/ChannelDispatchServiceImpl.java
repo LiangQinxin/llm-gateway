@@ -13,6 +13,7 @@ import cn.qx.domain.channel.model.valobj.ProxyRequest;
 import cn.qx.domain.channel.model.valobj.StreamResult;
 import cn.qx.domain.channel.service.selector.IChannelSelector;
 import cn.qx.types.exception.UnsupportedProtocolFieldException;
+import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONObject;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
@@ -112,7 +113,7 @@ public class ChannelDispatchServiceImpl implements IChannelDispatchService, IDis
                     recordFailure(channel, upstreamModel, "HTTP " + result.getStatusCode(),
                             start, attempts);
                     if (!hasRemainingCandidate(queue, i)) {
-                        return streamingExhausted(result, attempts);
+                        return unaryStreamingExhausted(result, attempts);
                     }
                     closeQuietly(result);
                 } else {
@@ -135,6 +136,9 @@ public class ChannelDispatchServiceImpl implements IChannelDispatchService, IDis
             } catch (UnsupportedProtocolFieldException e) {
                 throw e;
             } catch (RuntimeException e) {
+                if (!isNetworkFailure(e)) {
+                    throw e;
+                }
                 lastUnaryFailure = null;
                 lastStreamFailure = null;
                 lastFailureNetwork = true;
@@ -148,7 +152,7 @@ public class ChannelDispatchServiceImpl implements IChannelDispatchService, IDis
             return upstreamUnavailable(attempts);
         }
         if (lastStreamFailure != null) {
-            return streamingExhausted(lastStreamFailure, attempts);
+            return unaryStreamingExhausted(lastStreamFailure, attempts);
         }
         if (lastUnaryFailure != null) {
             return unaryExhausted(lastUnaryFailure, attempts);
@@ -203,12 +207,32 @@ public class ChannelDispatchServiceImpl implements IChannelDispatchService, IDis
                 .build();
     }
 
-    private static DispatchOutcome streamingExhausted(StreamResult result, List<String> attempts) {
-        return DispatchOutcome.builder()
-                .routed(true)
-                .streaming(result)
-                .errorMessage(summary(attempts))
-                .build();
+    private static DispatchOutcome unaryStreamingExhausted(StreamResult result, List<String> attempts) {
+        String raw = "";
+        if (result.getBody() != null) {
+            try {
+                raw = new String(result.getBody().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+            } catch (IOException e) {
+                log.warn("读取最终流式错误体失败: {}", e.getMessage());
+            }
+        }
+        JSONObject body;
+        try {
+            body = JSON.parseObject(raw);
+            if (body == null) {
+                body = new JSONObject();
+                body.put("raw", raw);
+            }
+        } catch (Exception e) {
+            body = new JSONObject();
+            body.put("raw", raw);
+        }
+        closeQuietly(result);
+        return unaryExhausted(ForwardResult.builder()
+                .statusCode(result.getStatusCode())
+                .raw(raw)
+                .body(body)
+                .build(), attempts);
     }
 
     private static DispatchOutcome upstreamUnavailable(List<String> attempts) {
@@ -245,5 +269,16 @@ public class ChannelDispatchServiceImpl implements IChannelDispatchService, IDis
         if (result.getCancel() != null) {
             result.getCancel().cancel();
         }
+    }
+
+    private static boolean isNetworkFailure(Throwable error) {
+        Throwable current = error;
+        while (current != null) {
+            if (current instanceof IOException) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
     }
 }

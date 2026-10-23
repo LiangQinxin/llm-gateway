@@ -43,7 +43,7 @@ public class ToolRiskScanner implements ISubScanner {
             rule("tool_nmap", "Network scanning",
                     "(?i)\\bnmap\\b", SecuritySeverity.HIGH),
             rule("tool_exfil_curl", "Command-line data exfiltration",
-                    "(?i)(?:\\bcurl\\b[^\\n]*?(?:-d\\s+@|--data(?:-binary)?\\s+@|-F\\s+\\w+=@)"
+                    "(?i)(?:\\b(?:curl|wget)\\b[^\\n]*?(?:-d\\s+@|--data(?:-binary)?\\s+@|-F\\s+\\w+=@)"
                             + "|\\|\\s*base64\\b)", SecuritySeverity.HIGH),
             rule("tool_exfil_scp", "Remote file copy",
                     "(?i)\\b(?:scp|sftp\\s+put)\\b", SecuritySeverity.HIGH),

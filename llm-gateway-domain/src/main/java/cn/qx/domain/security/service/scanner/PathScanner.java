@@ -42,7 +42,7 @@ public class PathScanner implements ISubScanner {
             new Rule("path_traversal", "Path Traversal",
                     Pattern.compile("(?i)(?:\\.\\.[/\\\\]){2,}"
                             + "|\\.\\.[/\\\\](?:etc|windows|users|root|proc|home|system32)\\b"
-                            + "|(?:%2e%2e%2f){2,}"),
+                            + "|(?:%2e%2e(?:%2f|%5c)){2,}"),
                     SecuritySeverity.MEDIUM)
     );
 

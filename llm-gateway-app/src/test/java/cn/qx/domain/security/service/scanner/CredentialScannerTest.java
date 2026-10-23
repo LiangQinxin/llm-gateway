@@ -54,6 +54,8 @@ public class CredentialScannerTest {
         assertTrue(rules.contains("credential_private_key"));
         assertTrue(result.getFindings().stream()
                 .anyMatch(f -> f.getSeverity() == SecuritySeverity.CRITICAL));
+        assertTrue("凭证规则应全部可打码", result.getFindings().stream()
+                .allMatch(ScanFinding::isRedactable));
         assertEquals("高严重度在 warn 档仅记录", "Allow", result.getFinalAction().code());
     }
 
@@ -67,12 +69,17 @@ public class CredentialScannerTest {
         AuditResult excluded = securityScanner.scan(cn.qx.domain.security.model.valobj.ScanRequest.of(
                 "password=*** token=your-token max_tokens=4096 prompt_tokens=128",
                 SecurityTestSupport.credentialOnly(SecurityMode.WARN)));
+        AuditResult exactOnly = securityScanner.scan(cn.qx.domain.security.model.valobj.ScanRequest.of(
+                "password=contest12345", SecurityTestSupport.credentialOnly(SecurityMode.WARN)));
         log.info("赋值凭证强值: {}", JSON.toJSONString(strong));
         log.info("赋值凭证排除值: {}", JSON.toJSONString(excluded));
+        log.info("排除词精确匹配: {}", JSON.toJSONString(exactOnly));
 
         assertTrue(strong.getFindings().stream()
                 .anyMatch(f -> "credential_password".equals(f.getRuleId())
                         && f.getSeverity() == SecuritySeverity.HIGH));
         assertTrue("占位值不应命中", excluded.getFindings().isEmpty());
+        assertTrue("只在完整值等于排除词时抑制", exactOnly.getFindings().stream()
+                .anyMatch(f -> "credential_password".equals(f.getRuleId())));
     }
 }

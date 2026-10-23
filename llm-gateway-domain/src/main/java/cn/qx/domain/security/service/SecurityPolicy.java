@@ -5,19 +5,18 @@ import cn.qx.domain.security.model.valobj.RiskLevel;
 import cn.qx.domain.security.model.valobj.SecurityAction;
 import cn.qx.domain.security.model.valobj.SecurityMode;
 import cn.qx.domain.security.model.valobj.SecuritySeverity;
+import org.springframework.stereotype.Component;
 
 /**
  * 安全策略矩阵与动作归一。
  */
-public final class SecurityPolicy {
+@Component
+public class SecurityPolicy {
 
-    private SecurityPolicy() {
-    }
-
-    public static FindingAction actionFor(SecuritySeverity severity,
-                                          boolean redactable,
-                                          SecurityMode mode,
-                                          boolean blockCritical) {
+    public FindingAction actionFor(SecuritySeverity severity,
+                                   boolean redactable,
+                                   SecurityMode mode,
+                                   boolean blockCritical) {
         if (severity == null) {
             return FindingAction.ALLOW;
         }
@@ -42,24 +41,20 @@ public final class SecurityPolicy {
         };
     }
 
-    public static SecurityAction globalAction(RiskLevel level,
-                                              boolean anyRedactable,
-                                              SecurityMode mode,
-                                              boolean blockCritical) {
-        FindingAction action = actionFor(severityFor(level), anyRedactable, mode, blockCritical);
-        return switch (action) {
-            case BLOCK -> SecurityAction.BLOCK;
-            case REDACT -> SecurityAction.SANITIZE;
-            case ALLOW, WARN -> SecurityAction.ALLOW;
-        };
-    }
-
-    private static SecuritySeverity severityFor(RiskLevel level) {
-        return switch (level) {
-            case CLEAN, LOW -> SecuritySeverity.LOW;
-            case MEDIUM -> SecuritySeverity.MEDIUM;
-            case HIGH -> SecuritySeverity.HIGH;
-            case CRITICAL -> SecuritySeverity.CRITICAL;
-        };
+    public SecurityAction globalAction(RiskLevel level,
+                                       boolean anyRedact,
+                                       SecurityMode mode,
+                                       boolean blockCritical) {
+        SecurityMode effectiveMode = mode == null ? SecurityMode.WARN : mode;
+        boolean blockByMode = effectiveMode == SecurityMode.BLOCK
+                && (level == RiskLevel.HIGH || level == RiskLevel.CRITICAL);
+        boolean blockByCritical = blockCritical && level == RiskLevel.CRITICAL;
+        if (blockByMode || blockByCritical) {
+            return SecurityAction.BLOCK;
+        }
+        if (effectiveMode == SecurityMode.REDACT && anyRedact) {
+            return SecurityAction.SANITIZE;
+        }
+        return SecurityAction.ALLOW;
     }
 }
