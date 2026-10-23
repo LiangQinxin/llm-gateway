@@ -87,7 +87,7 @@ public class ChannelDispatchServiceTest {
                 .type("deepseek")
                 .baseUrl(BASE_URL)
                 .apiKey(API_KEY)
-                .models("[]")
+                .models("[\"chain-a\"]")
                 .modelMapping("""
                         {
                           "chain-a":"deepseek-flash",

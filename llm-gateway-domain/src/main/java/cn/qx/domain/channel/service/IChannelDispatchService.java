@@ -10,7 +10,7 @@ import cn.qx.domain.channel.model.valobj.ProxyRequest;
  */
 public interface IChannelDispatchService {
 
-    /** 一次渠道分发：匹配 → 模型映射预烘焙 → 适配器分发。 */
+    /** 一次渠道分发：构建 failover 队列 → 逐渠道映射烘焙与转发。 */
     DispatchOutcome invoke(ProxyRequest request);
 
     /** 启动期校验所有启用渠道都有可用适配器。 */

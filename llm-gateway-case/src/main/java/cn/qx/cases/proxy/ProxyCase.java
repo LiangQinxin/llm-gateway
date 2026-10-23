@@ -105,7 +105,7 @@ public class ProxyCase implements IProxyCase {
                             "model_not_found", request.getInboundPath()))
                     .build();
         }
-        if (request.isStream()) {
+        if (request.isStream() && outcome.getStreaming() != null) {
             StreamResult streamResult = outcome.getStreaming();
             InputStream body = streamResult.getBody();
             if (isSuccessful(streamResult.getStatusCode()) && body != null) {
@@ -120,6 +120,9 @@ public class ProxyCase implements IProxyCase {
                     .build();
         }
         ForwardResult forwardResult = outcome.getUnary();
+        if (forwardResult == null) {
+            throw new IllegalStateException("分发结果既无流式响应也无非流式响应");
+        }
         if (forwardResult.getRaw() == null) {
             throw new IllegalStateException("适配器未返回原始响应文本");
         }

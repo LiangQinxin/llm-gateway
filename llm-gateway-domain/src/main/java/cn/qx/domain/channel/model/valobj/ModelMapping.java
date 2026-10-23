@@ -8,8 +8,8 @@ import java.util.Random;
 /**
  * 模型映射值对象——下游请求模型名 → 上游真实模型名。
  * <p>字符串值一对一确定；数组值按权重采样（本期等权随机）。
- * <p>采样在路由阶段执行一次并预烘焙进请求体，保证日志记录的模型与实际请求模型同源；
- * 适配器只应用映射结果，不自行采样。
+ * <p>采样在每次渠道尝试前执行并烘焙进请求体，保证 failover 切换渠道时
+ * 日志中的 upstream_model 与实际请求模型同源；适配器只应用映射结果，不自行采样。
  */
 public class ModelMapping {
 
@@ -33,7 +33,7 @@ public class ModelMapping {
      *   <li>数组等权随机采样；</li>
      *   <li>未命中 / 空值原样返回。</li>
      * </ul>
-     * 调用方（路由计划）将结果预烘焙进 body.model，再交给适配器透传。
+     * 调用方（渠道调度）在每次尝试前将结果烘焙进 body.model，再交给适配器透传。
      *
      * @param requestedModel 下游请求的模型名
      * @param random         随机源（数组采样用）
