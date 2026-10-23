@@ -38,6 +38,13 @@ public class ApiKeyCaseTest {
     @Resource
     private ApiKeyCase apiKeyCase;
 
+    /**
+     * 密钥全生命周期整链路。
+     * <pre>
+     * 创建（sk-waliapi 前缀/默认启用）→ 鉴权与白名单拒绝 → 配额封顶
+     * → 禁用不可鉴权 → 修改与空白名单放行 → 0=不限配额继续累加 → 删除后不可见
+     * </pre>
+     */
     @Test
     public void api_key_lifecycle_authentication_and_quota() {
         ApiKey created = apiKeyCase.create(ApiKey.builder()
@@ -95,6 +102,9 @@ public class ApiKeyCaseTest {
         assertThrows("删除后查询应报不存在", AppException.class, () -> apiKeyCase.get(created.getId()));
     }
 
+    /**
+     * 异常路径：重复 key 拒绝、过期密钥与大小写不匹配均不可鉴权。
+     */
     @Test
     public void duplicate_key_is_rejected_and_expired_key_cannot_authenticate() {
         String duplicate = "sk-waliapi-test-" + UUID.randomUUID();

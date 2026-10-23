@@ -77,6 +77,9 @@ public class DataPlaneAuthTest {
         upstream.shutdown();
     }
 
+    /**
+     * 缺密钥请求返回 OpenAI 风格 401，且鉴权 filter 失败时不得触达上游。
+     */
     @Test
     public void missing_key_returns_openai_401_without_calling_upstream() throws Exception {
         upstream.enqueue(new MockResponse()
@@ -108,6 +111,9 @@ public class DataPlaneAuthTest {
         assertEquals("filter 失败不应触达上游", 0, upstream.getRequestCount());
     }
 
+    /**
+     * 公开路径免鉴权可达性：health、models、mcp、mcp/sse 等无需密钥即可访问。
+     */
     @Test
     public void public_paths_are_reachable_without_key() throws Exception {
         HttpResponse<String> health = get("/health");
@@ -128,6 +134,9 @@ public class DataPlaneAuthTest {
         assertTrue("models 子路径不应被鉴权 filter 拦截", modelSubpath.statusCode() != 401);
     }
 
+    /**
+     * 有效密钥链路：转发触达上游、Authorization 换上游 key、2xx 按 total_tokens 记账。
+     */
     @Test
     public void valid_key_forwards_and_records_unary_usage() throws Exception {
         String model = "auth-usage-" + UUID.randomUUID();
@@ -176,6 +185,9 @@ public class DataPlaneAuthTest {
         }
     }
 
+    /**
+     * 流式请求：默认注入 stream_options.include_usage=true，按 usage 帧记账。
+     */
     @Test
     public void stream_request_injects_usage_option_and_records_sse_usage() throws Exception {
         String model = "auth-stream-" + UUID.randomUUID();
@@ -228,6 +240,9 @@ public class DataPlaneAuthTest {
         }
     }
 
+    /**
+     * 客户端显式 stream_options 应原样保留，不被网关覆盖。
+     */
     @Test
     public void client_stream_options_are_preserved() throws Exception {
         String model = "auth-preserve-" + UUID.randomUUID();
@@ -256,6 +271,9 @@ public class DataPlaneAuthTest {
         }
     }
 
+    /**
+     * 渠道配置 inject_stream_options=false 时不得注入 stream_options。
+     */
     @Test
     public void channel_can_disable_stream_options_injection() throws Exception {
         String model = "auth-no-inject-" + UUID.randomUUID();
@@ -279,6 +297,12 @@ public class DataPlaneAuthTest {
         }
     }
 
+    /**
+     * 鉴权拒绝状态码矩阵。
+     * <pre>
+     * 无效密钥 → 401 invalid_api_key；模型越权 → 404 model_not_found；配额耗尽 → 403 insufficient_quota
+     * </pre>
+     */
     @Test
     public void authentication_rejections_use_required_status_codes() throws Exception {
         String model = "auth-reject-" + UUID.randomUUID();
@@ -317,6 +341,9 @@ public class DataPlaneAuthTest {
         }
     }
 
+    /**
+     * 上游 4xx 错误透传且不记账：非 2xx 不扣减配额。
+     */
     @Test
     public void upstream_error_does_not_record_quota() throws Exception {
         String model = "auth-upstream-error-" + UUID.randomUUID();
@@ -343,6 +370,9 @@ public class DataPlaneAuthTest {
         }
     }
 
+    /**
+     * 渠道白名单本轮不强制：allowedChannels 与实际渠道不符时仍放行（待后续轮次收紧）。
+     */
     @Test
     public void channel_whitelist_is_not_enforced_in_this_round() throws Exception {
         String model = "auth-channel-whitelist-" + UUID.randomUUID();
@@ -372,6 +402,9 @@ public class DataPlaneAuthTest {
         }
     }
 
+    /**
+     * 畸形 SSE 帧完整透传，且解析不出 usage 时不记账。
+     */
     @Test
     public void malformed_sse_is_passed_through_without_recording() throws Exception {
         String model = "auth-bad-sse-" + UUID.randomUUID();
@@ -399,6 +432,9 @@ public class DataPlaneAuthTest {
         }
     }
 
+    /**
+     * 流式上游错误（SSE 内 error + 非 2xx）透传且不记账。
+     */
     @Test
     public void streaming_upstream_error_does_not_record_quota() throws Exception {
         String model = "auth-stream-error-" + UUID.randomUUID();
@@ -425,6 +461,9 @@ public class DataPlaneAuthTest {
         }
     }
 
+    /**
+     * 客户端中途断开：流未正常完成时不记账。
+     */
     @Test
     public void client_cancellation_does_not_record_quota() throws Exception {
         String model = "auth-cancel-" + UUID.randomUUID();
@@ -459,6 +498,13 @@ public class DataPlaneAuthTest {
         }
     }
 
+    /**
+     * 三条数据面入口按同名路径转发。
+     * <pre>
+     * /v1/completions、/v1/embeddings、/v1/responses → 上游相同路径；
+     * embeddings 请求不得被补 stream 字段
+     * </pre>
+     */
     @Test
     public void completions_embeddings_and_responses_use_matching_upstream_paths() throws Exception {
         String model = "auth-paths-" + UUID.randomUUID();
@@ -510,6 +556,7 @@ public class DataPlaneAuthTest {
         }
     }
 
+    /** 创建指定模型/配额状态的调用密钥 */
     private ApiKey createApiKey(String model, long quotaLimit, long quotaUsed) {
         return apiKeyCase.create(ApiKey.builder()
                 .name("数据面测试-" + UUID.randomUUID())
@@ -519,6 +566,7 @@ public class DataPlaneAuthTest {
                 .build());
     }
 
+    /** 创建指向 MockWebServer 假上游的 openai 渠道 */
     private Channel createChannel(String model, String config) {
         return channelCase.create(Channel.builder()
                 .name("数据面上游-" + UUID.randomUUID())
@@ -533,6 +581,7 @@ public class DataPlaneAuthTest {
                 .build());
     }
 
+    /** 构造 chat/completions 请求体 */
     private static JSONObject chatBody(String model, boolean stream) {
         JSONObject body = new JSONObject();
         body.put("model", model);
@@ -543,6 +592,7 @@ public class DataPlaneAuthTest {
         return body;
     }
 
+    /** 构造 SSE 类型 MockResponse */
     private static MockResponse sseResponse(String body) {
         return new MockResponse()
                 .setResponseCode(200)
@@ -550,6 +600,7 @@ public class DataPlaneAuthTest {
                 .setBody(body);
     }
 
+    /** 向数据面入口发送 JSON 请求（apiKey 为空时不带 Authorization） */
     private HttpResponse<String> postJson(String apiKey, String path, JSONObject body, String accept) throws Exception {
         HttpRequest.Builder builder = HttpRequest.newBuilder(dataPlaneUri(path))
                 .header("Content-Type", "application/json")
@@ -564,10 +615,12 @@ public class DataPlaneAuthTest {
         return client.send(builder.build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
     }
 
+    /** 快捷发送 chat/completions 请求 */
     private HttpResponse<String> postChat(String apiKey, String model, boolean stream, String accept) throws Exception {
         return postJson(apiKey, "/v1/chat/completions", chatBody(model, stream), accept);
     }
 
+    /** 发送 GET 请求 */
     private HttpResponse<String> get(String path) throws Exception {
         HttpRequest request = HttpRequest.newBuilder(dataPlaneUri(path))
                 .timeout(Duration.ofSeconds(10))
@@ -576,10 +629,12 @@ public class DataPlaneAuthTest {
         return client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
     }
 
+    /** 拼接指向本服务随机端口的完整 URI */
     private URI dataPlaneUri(String path) {
         return URI.create("http://127.0.0.1:" + port + path);
     }
 
+    /** 等待异步记账写库到位（3 秒轮询兜底） */
     private void waitForQuota(String apiKeyId, long expected) throws InterruptedException {
         long deadline = System.currentTimeMillis() + 3000;
         while (System.currentTimeMillis() < deadline) {
@@ -592,6 +647,7 @@ public class DataPlaneAuthTest {
         assertEquals(Long.valueOf(expected), apiKeyCase.get(apiKeyId).getQuotaUsed());
     }
 
+    /** 提取 Content-Type 主类型（去掉参数段） */
     private static String contentType(HttpResponse<?> response) {
         return response.headers().firstValue("Content-Type").orElse("").split(";", 2)[0];
     }

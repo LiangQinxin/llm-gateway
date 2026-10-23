@@ -52,6 +52,10 @@ public class ChannelCaseTest {
     /** 时间格式：ISO-8601 带偏移（毫秒精度，适配 varchar(32) 列宽） */
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSXXX");
 
+    /**
+     * 渠道真实端点连通性测试：插入渠道 → 调 testChannel → 断言 last_test_ok 回写。
+     * <p>前置条件：本地 OpenAI 兼容网关 {@code http://127.0.0.1:8777} 在线。
+     */
     @Test
     public void test_channel_real_endpoint() {
         String id = "test-" + UUID.randomUUID().toString().replace("-", "");
@@ -80,6 +84,9 @@ public class ChannelCaseTest {
         }
     }
 
+    /**
+     * 渠道不存在时应抛 {@link IllegalArgumentException}，不得触达上游。
+     */
     @Test
     public void test_channel_not_found() {
         assertThrows("渠道不存在时应抛 IllegalArgumentException",
@@ -87,6 +94,13 @@ public class ChannelCaseTest {
                 () -> channelCase.testChannel("not-exist-" + UUID.randomUUID()));
     }
 
+    /**
+     * 按渠道类型验证连通性探测端点矩阵。
+     * <pre>
+     * openai / custom → 命中 /models
+     * anthropic → 命中 /v1/models 且携带 x-api-key 请求头
+     * </pre>
+     */
     @Test
     public void connectivity_probe_matrix_by_channel_type() {
         Channel openai = channelCase.create(Channel.builder()
@@ -130,6 +144,13 @@ public class ChannelCaseTest {
         }
     }
 
+    /**
+     * 渠道 CRUD 与启用列表排序规则整链路。
+     * <pre>
+     * 创建 → 查询 → 更新（拒绝非法类型/重复名称）
+     * → 排序（priority ASC，同优先级 weight DESC）→ 停用不进路由列表 → 删除后不可见
+     * </pre>
+     */
     @Test
     public void channel_crud_and_enabled_ordering() {
         Channel low = channelCase.create(Channel.builder()

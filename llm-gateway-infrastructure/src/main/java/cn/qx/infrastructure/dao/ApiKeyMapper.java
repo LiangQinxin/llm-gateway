@@ -1,26 +1,26 @@
-package cn.qx.infrastructure.persistent.dao;
+package cn.qx.infrastructure.dao;
 
-import cn.qx.domain.identity.model.entity.ApiKey;
+import cn.qx.infrastructure.dao.po.ApiKeyPO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
 
 /**
- * api_keys 表 Mapper。
+ * api_keys 表 Mapper。SQL 见 api_key_mapper.xml。
  */
 @Mapper
 public interface ApiKeyMapper {
 
-    ApiKey queryById(@Param("id") String id);
+    ApiKeyPO queryById(@Param("id") String id);
 
-    List<ApiKey> queryAll();
+    List<ApiKeyPO> queryAll();
 
-    ApiKey queryAuthenticatable(@Param("key") String key, @Param("now") String now);
+    ApiKeyPO queryAuthenticatable(@Param("key") String key, @Param("now") String now);
 
-    void insert(ApiKey apiKey);
+    void insert(ApiKeyPO apiKeyPO);
 
-    int update(ApiKey apiKey);
+    int update(ApiKeyPO apiKeyPO);
 
     int updateStatus(@Param("id") String id,
                      @Param("status") Integer status,

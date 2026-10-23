@@ -11,7 +11,7 @@
 - **透传不包装（Q15）**：数据面原样透传上游状态码与错误体（含 4xx/5xx，OpenAI 风格 `{"error":{"message":...}}`），不套管理面 `Response<T>`——下游是 OpenAI 兼容 SDK。
 - **sanitize 本期做（Q16）**：空 content 的 assistant 消息清洗（无 tool_calls 整条删，有 tool_calls content 置 null），防 OpenAI 兼容上游 400。
 - **渠道选择（Q17）**：`SELECT * FROM channels WHERE status=1 ORDER BY priority DESC, weight DESC` 全查，服务内定义 `ChannelSelection{channel, upstreamModel, success, errorMessage}`，按请求 model 匹配（渠道 models 包含，或 model_mapping key 命中并经 ModelMapping.resolve 一次采样）取第一个命中。
-- **模型映射归属（Q8=②）**：字符串映射改写归适配器（`OpenAICompatSupport.applyModelMapping`）；数组映射采样归 proxy 路由阶段一次预烘焙进 body，适配器不重采样（保证日志 upstream_model 与请求 model 同源）。
+- **模型映射归属（Q8=②）**：字符串映射改写归适配器（`AbstractLlmAdaptor.prepareBody` 共有加工，所有厂商一致应用）；数组映射采样归 proxy 路由阶段一次预烘焙进 body，适配器不重采样（保证日志 upstream_model 与请求 model 同源）。
 
 ## Considered Options
 

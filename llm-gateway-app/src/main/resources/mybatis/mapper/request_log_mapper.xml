@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="cn.qx.infrastructure.persistent.dao.RequestLogMapper">
+<mapper namespace="cn.qx.infrastructure.dao.RequestLogMapper">
 
-    <resultMap id="RequestLogMap" type="cn.qx.domain.audit.model.entity.RequestLog">
+    <resultMap id="RequestLogMap" type="cn.qx.infrastructure.dao.po.RequestLogPO">
         <id column="id" property="id"/>
         <result column="seq" property="seq"/>
         <result column="api_key_id" property="apiKeyId"/>
@@ -53,7 +53,7 @@
         </where>
     </sql>
 
-    <insert id="insert" parameterType="cn.qx.domain.audit.model.entity.RequestLog"
+    <insert id="insert" parameterType="cn.qx.infrastructure.dao.po.RequestLogPO"
             useGeneratedKeys="true" keyProperty="seq" keyColumn="seq">
         INSERT INTO request_logs(
             id, api_key_id, api_key_name, channel_id, channel_name, model, upstream_model,

@@ -1,14 +1,14 @@
-package cn.qx.infrastructure.persistent.dao;
+package cn.qx.infrastructure.dao;
 
-import cn.qx.domain.channel.model.entity.Channel;
+import cn.qx.infrastructure.dao.po.ChannelPO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
 
 /**
- * 渠道表 Mapper（基础版三表，ADR-0005）。
- * <p>实体即 PO（ADR-0004：PO 与实体同构免转换层），SQL 见 channel_mapper.xml。
+ * channels 表 Mapper（基础版三表，ADR-0005）。SQL 见 channel_mapper.xml。
+ * <p>持久化对象为 ChannelPO（cn.qx.infrastructure.dao.po），字段与库表列一致。
  */
 @Mapper
 public interface ChannelMapper {
@@ -17,24 +17,24 @@ public interface ChannelMapper {
      * 按 ID 查询渠道。
      *
      * @param id 渠道 ID
-     * @return 渠道实体，不存在返回 null
+     * @return 渠道 PO，不存在返回 null
      */
-    Channel queryById(@Param("id") String id);
+    ChannelPO queryById(@Param("id") String id);
 
     /** 按名称查询渠道。 */
-    Channel queryByName(@Param("name") String name);
+    ChannelPO queryByName(@Param("name") String name);
 
     /** 查询全部渠道。 */
-    List<Channel> queryAll();
+    List<ChannelPO> queryAll();
 
     /** 查询启用渠道并按路由顺序排序。 */
-    List<Channel> queryEnabledOrdered();
+    List<ChannelPO> queryEnabledOrdered();
 
     /** 新增渠道 */
-    void insert(Channel channel);
+    void insert(ChannelPO channelPO);
 
     /** 更新渠道全部配置。 */
-    int update(Channel channel);
+    int update(ChannelPO channelPO);
 
     /** 更新启用状态。 */
     int updateStatus(@Param("id") String id,

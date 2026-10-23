@@ -74,6 +74,9 @@ public class InboundProtocolTest {
         upstream.shutdown();
     }
 
+    /**
+     * Anthropic 原生 /v1/messages 字节保真透传：x-api-key、anthropic-version 头透传，请求响应原样往返。
+     */
     @Test
     public void anthropic_native_messages_passthrough() throws Exception {
         String model = "claude-test-" + UUID.randomUUID();
@@ -111,6 +114,9 @@ public class InboundProtocolTest {
         }
     }
 
+    /**
+     * Anthropic 原生流式 SSE 字节保真：不注入 stream_options、不改写空 assistant 消息，按 usage 记账。
+     */
     @Test
     public void anthropic_native_stream_is_byte_exact() throws Exception {
         String model = "ms-native-stream-" + UUID.randomUUID();
@@ -160,6 +166,9 @@ public class InboundProtocolTest {
         }
     }
 
+    /**
+     * ms → CC 渠道转换：max_tokens 兜底、system 提升为消息，响应转回 message 结构。
+     */
     @Test
     public void messages_to_openai_channel_converts_request_and_response() throws Exception {
         String model = "ms-to-cc-" + UUID.randomUUID();
@@ -202,6 +211,9 @@ public class InboundProtocolTest {
         }
     }
 
+    /**
+     * CC → ms 渠道转换：system/metadata 映射，响应转回 chat completions 结构。
+     */
     @Test
     public void chat_to_anthropic_channel_converts_request_and_response() throws Exception {
         String model = "cc-to-ms-" + UUID.randomUUID();
@@ -245,6 +257,9 @@ public class InboundProtocolTest {
         }
     }
 
+    /**
+     * Responses 原生透传到 openai 渠道：请求响应字节保真往返。
+     */
     @Test
     public void responses_native_passthrough_to_openai_channel() throws Exception {
         String model = "rp-native-" + UUID.randomUUID();
@@ -279,6 +294,9 @@ public class InboundProtocolTest {
         }
     }
 
+    /**
+     * Responses 原生流式不得注入 CC stream_options。
+     */
     @Test
     public void responses_native_stream_does_not_inject_chat_stream_options() throws Exception {
         String model = "rp-native-stream-" + UUID.randomUUID();
@@ -317,6 +335,9 @@ public class InboundProtocolTest {
         }
     }
 
+    /**
+     * Responses → google 渠道降级走 /v1/chat/completions，响应转回 response 结构。
+     */
     @Test
     public void responses_to_google_falls_back_to_chat_completions() throws Exception {
         String model = "google-rp-" + UUID.randomUUID();
@@ -347,6 +368,9 @@ public class InboundProtocolTest {
         }
     }
 
+    /**
+     * Responses → ms 渠道经 canonical 转换：output/usage 字段映射。
+     */
     @Test
     public void responses_to_anthropic_channel_converts_through_canonical() throws Exception {
         String model = "rp-to-ms-" + UUID.randomUUID();
@@ -386,6 +410,9 @@ public class InboundProtocolTest {
         }
     }
 
+    /**
+     * ms 流式 → CC 上游 SSE 事件序列转换：message_start/content_block_message_delta/message_stop
+     */
     @Test
     public void messages_stream_to_openai_channel_converts_cc_sse() throws Exception {
         String model = "ms-stream-" + UUID.randomUUID();
@@ -426,6 +453,9 @@ public class InboundProtocolTest {
         }
     }
 
+    /**
+     * CC 流式 → ms 上游 SSE：delta 扩展字段（signature/vendor_state/vendor_trace）保留，usage 合并。
+     */
     @Test
     public void chat_stream_to_anthropic_channel_converts_ms_sse() throws Exception {
         String model = "cc-stream-" + UUID.randomUUID();
@@ -484,6 +514,9 @@ public class InboundProtocolTest {
         }
     }
 
+    /**
+     * DeepSeek 的 /v1/messages 是原生端点：路径 /anthropic/v1/messages、x-api-key 透传。
+     */
     @Test
     public void deepseek_ms_endpoint_is_native() throws Exception {
         String model = "deepseek-ms-" + UUID.randomUUID();
@@ -515,6 +548,9 @@ public class InboundProtocolTest {
         }
     }
 
+    /**
+     * Responses 流式 → ms 上游转换：rp 事件名与 usage 合并，按 total_tokens 记账。
+     */
     @Test
     public void responses_stream_to_anthropic_channel_converts_to_rp_events() throws Exception {
         String model = "rp-stream-" + UUID.randomUUID();
@@ -558,6 +594,9 @@ public class InboundProtocolTest {
         }
     }
 
+    /**
+     * Responses → DeepSeek 降级到主 CC 端点 /v1/chat/completions。
+     */
     @Test
     public void responses_to_deepseek_falls_back_to_primary_cc_endpoint() throws Exception {
         String model = "rp-deepseek-" + UUID.randomUUID();
@@ -592,6 +631,9 @@ public class InboundProtocolTest {
         }
     }
 
+    /**
+     * ms 无效密钥返回 Anthropic 错误形状（authentication_error）。
+     */
     @Test
     public void messages_invalid_key_uses_anthropic_error_shape() throws Exception {
         HttpResponse<String> response = postMessages(
@@ -604,6 +646,9 @@ public class InboundProtocolTest {
         assertEquals("authentication_error", body.getJSONObject("error").getString("type"));
     }
 
+    /**
+     * ms 缺密钥在 filter 层拦截，返回 Anthropic 错误形状。
+     */
     @Test
     public void messages_missing_key_is_rejected_by_filter_in_anthropic_shape() throws Exception {
         HttpRequest request = HttpRequest.newBuilder(uri("/v1/messages"))
@@ -624,6 +669,9 @@ public class InboundProtocolTest {
         assertEquals("invalid_api_key", body.getJSONObject("error").getString("code"));
     }
 
+    /**
+     * ms 缺 anthropic-version 在转发前被拒（400 invalid_request_error），不触达上游。
+     */
     @Test
     public void messages_missing_version_is_rejected_before_forwarding() throws Exception {
         HttpRequest request = HttpRequest.newBuilder(uri("/v1/messages"))
@@ -644,6 +692,9 @@ public class InboundProtocolTest {
         assertEquals(0, upstream.getRequestCount());
     }
 
+    /**
+     * ms tools 字段不支持 → 400 unsupported_field，不触达上游。
+     */
     @Test
     public void unsupported_tool_field_returns_400_unsupported_field() throws Exception {
         String model = "ms-tools-" + UUID.randomUUID();
@@ -674,6 +725,9 @@ public class InboundProtocolTest {
         }
     }
 
+    /**
+     * ms thinking 字段不支持 → 400 unsupported_field，不触达上游。
+     */
     @Test
     public void messages_thinking_field_returns_400_unsupported_field() throws Exception {
         String model = "ms-thinking-" + UUID.randomUUID();
@@ -698,6 +752,9 @@ public class InboundProtocolTest {
         }
     }
 
+    /**
+     * ms top_k 字段不支持 → 400 unsupported_field，不触达上游。
+     */
     @Test
     public void messages_top_k_field_returns_400_unsupported_field() throws Exception {
         String model = "ms-top-k-" + UUID.randomUUID();
@@ -722,6 +779,9 @@ public class InboundProtocolTest {
         }
     }
 
+    /**
+     * ms content.cache_control 不支持 → 400 unsupported_field，不触达上游。
+     */
     @Test
     public void messages_cache_control_block_returns_400_unsupported_field() throws Exception {
         String model = "ms-cache-control-" + UUID.randomUUID();
@@ -754,6 +814,9 @@ public class InboundProtocolTest {
         }
     }
 
+    /**
+     * ms messages.name 不支持 → 400 unsupported_field，不触达上游。
+     */
     @Test
     public void messages_message_level_name_returns_400_unsupported_field() throws Exception {
         String model = "ms-message-name-" + UUID.randomUUID();
@@ -778,6 +841,9 @@ public class InboundProtocolTest {
         }
     }
 
+    /**
+     * ms content 块未知字段 → 400 unsupported_field，不触达上游。
+     */
     @Test
     public void messages_unknown_content_block_field_returns_400_unsupported_field() throws Exception {
         String model = "ms-content-field-" + UUID.randomUUID();
@@ -809,6 +875,9 @@ public class InboundProtocolTest {
         }
     }
 
+    /**
+     * CC 流式转 ms 时 stream_options 不支持 → 400 unsupported_field，不触达上游。
+     */
     @Test
     public void chat_stream_options_unsupported_by_anthropic_returns_400() throws Exception {
         String model = "cc-stream-options-" + UUID.randomUUID();
@@ -836,6 +905,9 @@ public class InboundProtocolTest {
         }
     }
 
+    /**
+     * ms 非空 annotations 不支持 → 400 unsupported_field，不触达上游。
+     */
     @Test
     public void messages_non_empty_annotations_return_400_unsupported_field() throws Exception {
         String model = "ms-annotations-" + UUID.randomUUID();
@@ -869,6 +941,9 @@ public class InboundProtocolTest {
         }
     }
 
+    /**
+     * 上游返回非空 annotations 时以 Anthropic 形状报 400 unsupported_field。
+     */
     @Test
     public void upstream_non_empty_annotations_return_400_unsupported_field() throws Exception {
         String model = "ms-upstream-annotations-" + UUID.randomUUID();
@@ -898,6 +973,9 @@ public class InboundProtocolTest {
         }
     }
 
+    /**
+     * ms 上游错误转换为 Anthropic 错误形状回传。
+     */
     @Test
     public void messages_upstream_error_is_echoed_in_anthropic_shape() throws Exception {
         String model = "ms-upstream-error-" + UUID.randomUUID();
@@ -926,6 +1004,9 @@ public class InboundProtocolTest {
         }
     }
 
+    /**
+     * ms 上游畸形错误体仍以 Anthropic 形状回传。
+     */
     @Test
     public void messages_malformed_upstream_error_still_uses_anthropic_shape() throws Exception {
         String model = "ms-bad-error-" + UUID.randomUUID();
@@ -951,6 +1032,9 @@ public class InboundProtocolTest {
         }
     }
 
+    /**
+     * rp 上游畸形错误体仍以 OpenAI 形状回传。
+     */
     @Test
     public void responses_malformed_upstream_error_still_uses_openai_shape() throws Exception {
         String model = "rp-bad-error-" + UUID.randomUUID();
@@ -978,6 +1062,9 @@ public class InboundProtocolTest {
         }
     }
 
+    /**
+     * rp 原生上游畸形错误体同样以 OpenAI 形状回传。
+     */
     @Test
     public void native_responses_malformed_error_also_uses_openai_shape() throws Exception {
         String model = "rp-native-bad-error-" + UUID.randomUUID();
@@ -1005,6 +1092,7 @@ public class InboundProtocolTest {
         }
     }
 
+    /** 创建允许指定模型的协议测试密钥 */
     private ApiKey createApiKey(String model) {
         return apiKeyCase.create(ApiKey.builder()
                 .name("协议测试密钥-" + UUID.randomUUID())
@@ -1014,6 +1102,7 @@ public class InboundProtocolTest {
                 .build());
     }
 
+    /** 创建指定渠道类型/模型的协议测试渠道 */
     private Channel createChannel(String type, String model, String baseUrl, String config) {
         return channelCase.create(Channel.builder()
                 .name("协议测试渠道-" + UUID.randomUUID())
@@ -1028,6 +1117,7 @@ public class InboundProtocolTest {
                 .build());
     }
 
+    /** 构造 /v1/messages 原生请求体 */
     private static JSONObject messagesBody(String model) {
         JSONObject body = new JSONObject();
         body.put("model", model);
@@ -1041,6 +1131,7 @@ public class InboundProtocolTest {
         return body;
     }
 
+    /** 构造 chat/completions 请求体 */
     private static JSONObject chatBody(String model) {
         JSONObject body = new JSONObject();
         body.put("model", model);
@@ -1057,6 +1148,7 @@ public class InboundProtocolTest {
         return body;
     }
 
+    /** 构造 /v1/responses 原生请求体 */
     private static JSONObject responsesBody(String model) {
         JSONObject body = new JSONObject();
         body.put("model", model);
@@ -1070,12 +1162,14 @@ public class InboundProtocolTest {
         return body;
     }
 
+    /** 在 chatBody 基础上开启流式 */
     private static JSONObject streamChatBody(String model) {
         JSONObject body = chatBody(model);
         body.put("stream", true);
         return body;
     }
 
+    /** 以 x-api-key + anthropic-version 头发送 /v1/messages 请求 */
     private HttpResponse<String> postMessages(String apiKey, JSONObject body) throws Exception {
         HttpRequest request = HttpRequest.newBuilder(uri("/v1/messages"))
                 .header("Content-Type", "application/json")
@@ -1087,6 +1181,7 @@ public class InboundProtocolTest {
         return client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
     }
 
+    /** 以 Bearer 头发送 JSON 请求到指定路径 */
     private HttpResponse<String> postJson(String apiKey, String path, JSONObject body, String accept)
             throws Exception {
         HttpRequest.Builder builder = HttpRequest.newBuilder(uri(path))
@@ -1100,6 +1195,7 @@ public class InboundProtocolTest {
         return client.send(builder.build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
     }
 
+    /** 构造 SSE 类型 MockResponse */
     private static MockResponse sseResponse(String body) {
         return new MockResponse()
                 .setResponseCode(200)
@@ -1107,10 +1203,12 @@ public class InboundProtocolTest {
                 .setBody(body);
     }
 
+    /** 拼接指向本服务随机端口的完整 URI */
     private URI uri(String path) {
         return URI.create("http://127.0.0.1:" + port + path);
     }
 
+    /** 等待异步记账写库到位（3 秒轮询兜底） */
     private void waitForQuota(String apiKeyId, long expected) throws InterruptedException {
         long deadline = System.currentTimeMillis() + 3000;
         while (System.currentTimeMillis() < deadline) {
@@ -1123,6 +1221,7 @@ public class InboundProtocolTest {
         assertEquals(Long.valueOf(expected), apiKeyCase.get(apiKeyId).getQuotaUsed());
     }
 
+    /** 提取 SSE 文本中的所有 event 名 */
     private static List<String> sseEventNames(String body) {
         return Arrays.stream(body.split("\n\n"))
                 .flatMap(block -> Arrays.stream(block.split("\n")))
@@ -1131,6 +1230,7 @@ public class InboundProtocolTest {
                 .toList();
     }
 
+    /** 提取 SSE 文本中所有 data: 负载（去掉空块） */
     private static List<String> sseDataFrames(String body) {
         return Arrays.stream(body.split("\n\n"))
                 .map(String::trim)

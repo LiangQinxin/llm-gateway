@@ -46,6 +46,13 @@ public class ChannelDispatchServiceTest {
     @Resource
     private ChannelCase channelCase;
 
+    /**
+     * 分发器整链路：直连/字符串映射/数组映射/链式映射/未命中/流式。
+     * <pre>
+     * 直连命中 → 字符串映射预烘焙 → 数组映射采样预烘焙 → 链式映射只采样一次（不得二次改写）
+     * → 未命中带 errorMessage → 流式透传 [DONE]
+     * </pre>
+     */
     @Test
     public void dispatch_routes_maps_forwards_and_streams() throws Exception {
         Channel channel = channelCase.create(Channel.builder()
@@ -150,6 +157,9 @@ public class ChannelDispatchServiceTest {
         }
     }
 
+    /**
+     * Anthropic 渠道可参与数据面路由：转换后转发成功。
+     */
     @Test
     public void anthropic_channel_is_routable_after_forwarding_support() {
         String model = "anthropic-only-" + UUID.randomUUID();
@@ -174,6 +184,7 @@ public class ChannelDispatchServiceTest {
         }
     }
 
+    /** 构造一条分发请求体 */
     private static ProxyRequest request(String model, boolean stream, String content) {
         JSONObject body = new JSONObject();
         body.put("model", model);

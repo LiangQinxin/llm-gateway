@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="cn.qx.infrastructure.persistent.dao.ApiKeyMapper">
+<mapper namespace="cn.qx.infrastructure.dao.ApiKeyMapper">
 
-    <resultMap id="ApiKeyMap" type="cn.qx.domain.identity.model.entity.ApiKey">
+    <resultMap id="ApiKeyMap" type="cn.qx.infrastructure.dao.po.ApiKeyPO">
         <id column="id" property="id"/>
         <result column="name" property="name"/>
         <result column="key" property="key"/>
@@ -38,14 +38,14 @@
         LIMIT 1
     </select>
 
-    <insert id="insert" parameterType="cn.qx.domain.identity.model.entity.ApiKey">
+    <insert id="insert" parameterType="cn.qx.infrastructure.dao.po.ApiKeyPO">
         INSERT INTO api_keys(id, name, `key`, status, allowed_models, allowed_channels,
                              quota_limit, quota_used, expires_at, created_at, updated_at)
         VALUES (#{id}, #{name}, #{key}, #{status}, #{allowedModels}, #{allowedChannels},
                 #{quotaLimit}, #{quotaUsed}, #{expiresAt}, #{createdAt}, #{updatedAt})
     </insert>
 
-    <update id="update" parameterType="cn.qx.domain.identity.model.entity.ApiKey">
+    <update id="update" parameterType="cn.qx.infrastructure.dao.po.ApiKeyPO">
         UPDATE api_keys
         SET name = #{name},
             `key` = #{key},

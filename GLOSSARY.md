@@ -1,6 +1,6 @@
 # llm-gateway
 
-Java 版 LLM 网关，承接 Rust/Tauri 项目 WaLiAPI（v0.3.6）的功能面：渠道、密钥、转发主链路、安全扫描、知识库 RAG、wiki、MCP、auth_provider、语义缓存、OTLP、健康探针、审计日志。采用六边形分层（trigger→case→domain←infrastructure）+ 用例编排，对齐 llm-api 既有惯例。
+Java 版 LLM 网关，承接 Rust/Tauri 原项目的功能面：渠道、密钥、转发主链路、安全扫描、知识库 RAG、wiki、MCP、auth_provider、语义缓存、OTLP、健康探针、审计日志。采用六边形分层（trigger→case→domain←infrastructure）+ 用例编排，对齐 llm-api 既有惯例。
 
 ## Language
 
@@ -33,8 +33,12 @@ _Avoid_: 协议类型（避免与渠道 type 混淆）、入站协议
 _Avoid_: 中间协议、标准格式
 
 **IDispatchInvoker（转发门面）**:
-channel 域对 ProxyCase 暴露的唯一转发入口端口（ADR-0009）。ProxyCase 只调它，不感知渠道查询、model 映射、适配器 map 或流式分支。唯一实现是路由器 service：内部串联「全查启用渠道 → 按 model 匹配 → 采样 upstreamModel → 烘焙 body.model → 按 channel.type 路由到 ILlmAdaptor → 按 stream 分支执行 forward/forwardStream」。
-_Avoid_: dispatcher（保留给后续加权/重试编排）、router
+channel 域对 ProxyCase 暴露的唯一转发入口端口（ADR-0009）。ProxyCase 只调它，不感知渠道查询、模型映射、适配器 map 或流式分支。唯一实现是路由器 service：内部串联「全查启用渠道 → ChannelSelector 构建 failover 队列 → 按序尝试（每渠道 per-attempt 采样烘焙 body.model，失败按分类切换下一渠道）→ 按 channel.type 路由到 ILlmAdaptor → 按 stream 分支执行 forward/forwardStream」（ADR-0012）。
+_Avoid_: router
+
+**ChannelSelector（渠道选择器）**:
+channel 域调度器组件（service/selector 子包，接口 IChannelSelector + impl 实现，ADR-0012）：无状态纯函数，请求开始时对启用渠道做模型匹配过滤 → 优先级分组 → 组内不放回权重随机，构建每个渠道恰好出现一次的有序 failover 队列（即需求语境中的"调度器 / Dispatcher"）；编排按序消费，每渠道最多尝试一次，失败按分类切换下一渠道。
+_Avoid_: dispatcher（职责已由 ChannelSelector 承担）、router
 
 **DispatchOutcome（分发结果）**:
 channel 域路由器一次表达三种结果：未命中 `routed=false + errorMessage`、非流式 `ForwardResult`、流式 `StreamResult`（含 cancel 句柄）。未命中是正常业务分支，返回 404 model_not_found；channel.type 无适配器由启动自检拦截。
@@ -71,3 +75,55 @@ _Avoid_: service、facade、handler
 **quota（配额）**:
 密钥额度语义：quota_limit=0 表示不限；quota_used 递增带封顶保护（超过上限后不再累加）。认证时预检超限拒绝（403 insufficient_quota）；用量 best-effort——流式依赖上游 usage 帧（需请求带 stream_options），拿不到则不记、不估算、不阻断透传（ADR-0010）。
 _Avoid_: limit（列名 quota_limit 保留）、额度上限（表述需含"0=不限"）
+
+## 安全审计域
+
+**SecurityScanner（安全扫描引擎）**:
+security 域对请求/响应内容做安全审计判定的调度器：分派子扫描器检查文本、汇总发现、去重、按三段评分定风险等级并产出动作。
+_Avoid_: 安全审计服务、auditor
+
+**ISubScanner（子扫描器）**:
+安全扫描的最小检查单元端口：输入一段文本，输出命中的安检结果列表；一个扫描器专注一类风险。
+_Avoid_: 检测器、rule engine
+
+**ScanPhase（扫描阶段）**:
+扫描的方向维度：REQUEST（请求体）与 RESPONSE（响应体）；当前只实现 REQUEST，RESPONSE 仅预留端口。
+_Avoid_: 方向、audit phase
+
+**ScanFinding（安检发现）**:
+一次规则命中：规则 id、扫描器、严重度、类别标签、命中证据、位置（JSONPath 或原文偏移）。
+_Avoid_: 命中项、issue
+
+**风险评分（三段制）**:
+一次扫描的风险量化：基础分取最高 severity 值（Info=5/Low=15/Medium=35/High=65/Critical=90，不累加）→ 类别组合加分 → 总分反推等级（0=Clean、1–34=Low、35–64=Medium、65–89=High、≥90=Critical，只升不降）。危险性不随命中数量线性叠加。
+_Avoid_: 累加计分、风险分（表述需含三段制）
+
+**策略档位（mode）**:
+网关全局安全严格度档位（audit/warn/redact/block 四选一）；档内等级→动作映射查策略矩阵（代码内置常量），另配 blockCritical 开关（打开后 Critical 在任意档位强制 Block）。
+_Avoid_: 安全模式（避免与 StreamMode 混淆）
+
+**SecurityAction（安全动作）**:
+一条发现最终动作的三值语义：Allow（放行并记录）、Sanitize（打码后放行）、Block（拦截）。落库值（RequestLog.securityAction）只用这三值。
+_Avoid_: Warn、Redact（仅策略中间态，不落库）
+
+**CredentialScanner（凭证扫描器）**:
+检测密钥/账号密码泄露的子扫描器（云厂商密钥、私钥块、账号密码键值、带口令连接串等）。固定启用。
+
+**PathScanner（路径扫描器）**:
+检测路径攻击与敏感文件引用的子扫描器（路径穿越、~/.ssh、/etc/passwd 等）。固定启用。
+
+**UnicodeScanner（Unicode 扫描器）**:
+检测 Unicode 伪装字符的子扫描器（零宽字符、同形字、RTL 覆盖等）。默认关闭，配置启用。
+
+**NetworkScanner（网络扫描器）**:
+检测网络地址与内网探测的子扫描器（外联 URL、内网 IP/域名、端口等）。默认关闭，配置启用。
+
+**ToolRiskScanner（危险工具扫描器）**:
+检测危险工具调用的子扫描器（curl/wget 外发、base64 解码、反弹 shell 等）。默认关闭，配置启用。
+
+**TrackingScanner（追踪扫描器）**:
+检测追踪与指纹采集的子扫描器（跟踪像素、浏览器指纹、定位请求等）。默认关闭，配置启用。
+
+**类别（ScanCategory）**:
+ScanFinding 的风险类别标签，用于组合加分判断与归类：凭证、敏感文件、隐写、命令、外联、追踪。追踪类别不参与任何组合加分（组合表仅凭证/敏感文件/隐写/命令/外联四组）。
+_Avoid_: 分类、tag（避免与审计域之外的概念混淆）

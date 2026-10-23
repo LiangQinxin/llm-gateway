@@ -25,6 +25,9 @@ import static org.junit.Assert.assertEquals;
 @SpringBootTest
 public class SseProtocolTransformerTest {
 
+    /**
+     * Responses SSE → chat 转换保留扩展字段：vendor_trace、service_tier、usage.cache_hit 不得丢失。
+     */
     @Test
     public void responses_sse_extensions_survive_conversion_to_chat() throws Exception {
         String sse = """
@@ -52,6 +55,7 @@ public class SseProtocolTransformerTest {
         assertEquals(true, completed.getJSONObject("usage").getBoolean("cache_hit"));
     }
 
+    /** 提取 SSE 文本中所有 data: 负载（去掉空块与 [DONE]） */
     private static List<String> dataFrames(String body) {
         return Arrays.stream(body.split("\n\n"))
                 .map(String::trim)

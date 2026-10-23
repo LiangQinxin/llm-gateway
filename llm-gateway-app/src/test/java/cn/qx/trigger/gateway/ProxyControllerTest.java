@@ -63,6 +63,7 @@ public class ProxyControllerTest {
             .connectTimeout(Duration.ofSeconds(10))
             .build();
 
+    /** 每个测试用例前创建专属调用密钥 */
     @Before
     public void createCallerKey() {
         apiKey = apiKeyCase.create(ApiKey.builder()
@@ -71,6 +72,7 @@ public class ProxyControllerTest {
                 .build());
     }
 
+    /** 每个测试用例后清理调用密钥 */
     @After
     public void deleteCallerKey() {
         if (apiKey != null) {
@@ -78,6 +80,9 @@ public class ProxyControllerTest {
         }
     }
 
+    /**
+     * 缺 model 请求应返回 OpenAI 风格 400 错误。
+     */
     @Test
     public void missing_model_returns_openai_400() throws Exception {
         HttpResponse<String> response = sendString(
@@ -88,6 +93,9 @@ public class ProxyControllerTest {
         assertTrue(response.body().contains("\"error\""));
     }
 
+    /**
+     * 未知模型返回 404 model_not_found；真实非流式转发返回 200 且含 choices。
+     */
     @Test
     public void unknown_model_and_real_unary_forward() throws Exception {
         HttpResponse<String> notFound = sendString(
@@ -113,6 +121,9 @@ public class ProxyControllerTest {
         }
     }
 
+    /**
+     * Accept: text/event-stream 兜底：请求体缺省 stream 时按流式发起并透传 SSE 至 [DONE]。
+     */
     @Test
     public void accept_fallback_really_requests_and_streams_sse() throws Exception {
         Channel channel = createChannel("测试-proxy-stream-");
@@ -146,6 +157,9 @@ public class ProxyControllerTest {
         }
     }
 
+    /**
+     * 开流前连接失败兜底：上游不可达时降级为 JSON 502 upstream_error。
+     */
     @Test
     public void pre_stream_connection_failure_falls_back_to_json() throws Exception {
         Channel channel = channelCase.create(Channel.builder()
@@ -173,10 +187,12 @@ public class ProxyControllerTest {
         }
     }
 
+    /** 发送请求体并返回字符串响应 */
     private HttpResponse<String> sendString(String body, String accept) throws Exception {
         return client.send(request(body, accept), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
     }
 
+    /** 构造指向本服务 /v1/chat/completions 的 HTTP 请求 */
     private HttpRequest request(String body, String accept) {
         return HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + "/v1/chat/completions"))
                 .header("Content-Type", "application/json")
@@ -187,6 +203,7 @@ public class ProxyControllerTest {
                 .build();
     }
 
+    /** 创建一条指向真实上游的 deepseek 渠道 */
     private Channel createChannel(String namePrefix) {
         return channelCase.create(Channel.builder()
                 .name(namePrefix + UUID.randomUUID())
@@ -201,6 +218,7 @@ public class ProxyControllerTest {
                 .build());
     }
 
+    /** 提取 Content-Type 主类型（去掉参数段） */
     private static String contentType(HttpResponse<?> response) {
         String value = response.headers().firstValue("Content-Type").orElse("");
         return value.split(";", 2)[0];

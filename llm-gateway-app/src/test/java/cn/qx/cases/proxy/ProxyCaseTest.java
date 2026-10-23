@@ -53,6 +53,13 @@ public class ProxyCaseTest {
     @Resource
     private ApiKeyCase apiKeyCase;
 
+    /**
+     * 请求预处理：消息清洗与流式判定。
+     * <pre>
+     * 空 assistant 且无 tool_calls → 删除；有 tool_calls → content 置 null；
+     * stream 判定优先级：body.stream 唯一权威 &gt; Accept 兜底；缺 model → 400
+     * </pre>
+     */
     @Test
     public void prepare_sanitizes_messages_and_detects_stream() {
         JSONObject body = new JSONObject();
@@ -92,6 +99,9 @@ public class ProxyCaseTest {
                 () -> proxyCase.prepare(missing.toJSONString(), "application/json"));
     }
 
+    /**
+     * 数据面转发三态：非流式 200、模型未命中 404、流式 SSE 到 [DONE]。
+     */
     @Test
     public void forward_unary_not_found_and_stream() throws Exception {
         ApiKey apiKey = apiKeyCase.create(ApiKey.builder()
@@ -140,6 +150,9 @@ public class ProxyCaseTest {
         }
     }
 
+    /**
+     * 上游非 2xx 错误体透传：状态码保留、错误体按 JSON 原样回传。
+     */
     @Test
     public void upstream_non_2xx_error_body_is_passed_through() {
         ApiKey apiKey = apiKeyCase.create(ApiKey.builder()
@@ -171,6 +184,7 @@ public class ProxyCaseTest {
         }
     }
 
+    /** 构造一条 chat 消息 */
     private static JSONObject message(String role, String content) {
         JSONObject message = new JSONObject();
         message.put("role", role);
@@ -178,6 +192,7 @@ public class ProxyCaseTest {
         return message;
     }
 
+    /** 构造 chat/completions 请求体 JSON */
     private static String requestJson(String model, boolean stream) {
         JSONObject body = new JSONObject();
         body.put("model", model);

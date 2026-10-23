@@ -16,7 +16,7 @@ import java.util.List;
  * <ul>
  *   <li>时间 / ID 全 String（ISO-8601 带偏移 + UUID，ADR-0004）；</li>
  *   <li>JSON 列实体保持 String + 便捷解析；</li>
- *   <li>PO 与实体同构免转换层（MyBatis 直接映射本实体）。</li>
+ *   <li>持久化由基础设施层 ChannelPO 承担（cn.qx.infrastructure.dao.po），repository 适配器负责实体 ↔ PO 转换。</li>
  * </ul>
  */
 @Data

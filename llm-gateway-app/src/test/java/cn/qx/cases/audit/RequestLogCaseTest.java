@@ -32,6 +32,13 @@ public class RequestLogCaseTest {
     @Resource
     private RequestLogCase requestLogCase;
 
+    /**
+     * 审计日志追加、分页过滤、详情读取与按时间清理整链路。
+     * <pre>
+     * 写入两条日志 → seq 自增校验 → 组合条件分页命中 newer → 详情解析
+     * → deleteBefore 只删旧日志并保留新日志
+     * </pre>
+     */
     @Test
     public void request_log_append_page_detail_and_filter() {
         RequestLog older = requestLogCase.record(RequestLog.builder()
@@ -93,6 +100,10 @@ public class RequestLogCaseTest {
                         .getRecords().get(0).getId());
     }
 
+    /**
+     * 全量清空接口可用性验证。
+     * <p>事务回滚机制兜底：测试结束后本地库既有审计数据不受影响。
+     */
     @Test
     public void clear_all_is_available_and_rolls_back() {
         requestLogCase.record(RequestLog.builder()

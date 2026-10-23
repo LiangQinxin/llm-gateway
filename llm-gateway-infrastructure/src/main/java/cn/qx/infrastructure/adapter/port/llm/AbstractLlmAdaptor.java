@@ -147,11 +147,46 @@ public abstract class AbstractLlmAdaptor implements ILlmAdaptor, IForwardingAdap
         }
     }
 
-    /** 子类可对请求体做协议特定加工。 */
+    /**
+     * 请求体共有加工：应用模型映射（字符串值改写，数组值不重采样）。
+     * <p>模型映射是渠道级共有能力（所有厂商请求体的 model 字段同源语义）；
+     * 子类如需厂商私有加工（如 OpenAI 族的 stream_options 注入），在 {@code super.prepareBody} 之上叠加。
+     */
     protected JSONObject prepareBody(JSONObject body,
                                      ChannelConfig config,
                                      boolean stream,
                                      ProtocolFamily targetProtocol) {
+        return applyModelMapping(body, config.getModelMapping());
+    }
+
+    /**
+     * 应用模型映射：请求体中的 model 按下发名 → 上游真实名改写。
+     * <p>例：
+     * <pre>
+     * mapping = {"gpt-4o": "deepseek-chat"}
+     * 请求 model = gpt-4o  →  改写为 deepseek-chat
+     * </pre>
+     * <ul>
+     *   <li>字符串值改写；</li>
+     *   <li>数组值原样保留（采样由调用方在路由阶段完成并预烘焙）；</li>
+     *   <li>映射为空或未命中时原样返回（不污染调用方入参）。</li>
+     * </ul>
+     */
+    private static JSONObject applyModelMapping(JSONObject body, JSONObject mapping) {
+        if (body == null || mapping == null || mapping.isEmpty()) {
+            return body;
+        }
+        String model = body.getString("model");
+        if (model == null) {
+            return body;
+        }
+        Object mapped = mapping.get(model);
+        if (mapped instanceof String s && !s.isEmpty()) {
+            JSONObject copy = (JSONObject) body.clone();
+            copy.put("model", s);
+            return copy;
+        }
+        // 数组值：已在路由阶段采样预烘焙，此处不重采样
         return body;
     }
 

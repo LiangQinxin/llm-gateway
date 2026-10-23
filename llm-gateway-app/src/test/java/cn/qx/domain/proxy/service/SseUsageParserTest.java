@@ -26,6 +26,9 @@ public class SseUsageParserTest {
     @Resource
     private ObjectProvider<ISseUsageParserService> usageParserProvider;
 
+    /**
+     * 任意分块边界下仍能解析出 total_tokens（跨块拼接后累加）。
+     */
     @Test
     public void extracts_total_tokens_across_arbitrary_chunks() {
         ISseUsageParserService parser = usageParserProvider.getObject();
@@ -37,6 +40,9 @@ public class SseUsageParserTest {
         assertEquals(OptionalLong.of(9), parser.usageTokens());
     }
 
+    /**
+     * 缺 total_tokens 时回退为 prompt_tokens + completion_tokens 求和。
+     */
     @Test
     public void falls_back_to_prompt_plus_completion() {
         ISseUsageParserService parser = usageParserProvider.getObject();
@@ -48,6 +54,9 @@ public class SseUsageParserTest {
         assertEquals(OptionalLong.of(7), parser.usageTokens());
     }
 
+    /**
+     * 畸形或无 usage 帧应静默跳过，不得抛异常（best-effort 红线）。
+     */
     @Test
     public void malformed_or_missing_usage_is_ignored_without_throwing() {
         ISseUsageParserService parser = usageParserProvider.getObject();
@@ -60,6 +69,9 @@ public class SseUsageParserTest {
         assertTrue("解析失败应静默跳过", parser.usageTokens().isEmpty());
     }
 
+    /**
+     * Responses API 嵌套 usage（response.usage）可解析。
+     */
     @Test
     public void extracts_nested_responses_api_usage() {
         ISseUsageParserService parser = usageParserProvider.getObject();
@@ -74,6 +86,9 @@ public class SseUsageParserTest {
         assertEquals(OptionalLong.of(7), parser.usageTokens());
     }
 
+    /**
+     * Anthropic 跨帧 usage 合并：message_start + message_delta 累加。
+     */
     @Test
     public void merges_anthropic_usage_across_message_frames() {
         ISseUsageParserService parser = usageParserProvider.getObject();

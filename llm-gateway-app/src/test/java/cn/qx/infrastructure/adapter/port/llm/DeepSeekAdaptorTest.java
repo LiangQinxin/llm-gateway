@@ -61,6 +61,11 @@ public class DeepSeekAdaptorTest {
                 .build();
     }
 
+    /**
+     * 渠道连通性测试：调用上游真实端点执行模型探测。
+     * <p>前置条件：本地 OpenAI 兼容网关 {@code http://127.0.0.1:8777} 必须在线，
+     * 否则断言失败（断言信息中已注明依赖）。
+     */
     @Test
     public void test_channel_connectivity() {
         ILlmAdaptor adaptor = adaptors.get("deepseek");
@@ -71,6 +76,10 @@ public class DeepSeekAdaptorTest {
         assertTrue("连通性测试应成功（上游 127.0.0.1:8777 需在线）", result.isSuccess());
     }
 
+    /**
+     * 非流式转发链路：chat/completions 请求透传并保留原始响应。
+     * <p>断言：HTTP 200、choices 非空、raw 保留原始 choices 文本。
+     */
     @Test
     public void forward_chat_completions() {
         ILlmAdaptor adaptor = adaptors.get("deepseek");
@@ -84,6 +93,11 @@ public class DeepSeekAdaptorTest {
         assertTrue("raw 应包含 choices 原文", result.getRaw().contains("\"choices\""));
     }
 
+    /**
+     * 各渠道适配器自包含性校验。
+     * <p>openai/custom 复用本网关端点做兼容透传；
+     * anthropic 应使用自身探测端点与请求头，不依赖 CC 约定。
+     */
     @Test
     public void openai_compatible_and_anthropic_adaptors_are_self_contained() {
         ChannelConfig config = config();
@@ -109,6 +123,9 @@ public class DeepSeekAdaptorTest {
                 anthropic.test(anthropicConfig).isSuccess());
     }
 
+    /**
+     * 字符串模型映射：下游请求 {@code gpt-4o} 应被改写为上游 {@code deepseek-flash}。
+     */
     @Test
     public void forward_with_string_model_mapping() {
         // 字符串映射：下游请求 gpt-4o → 上游改写为 deepseek-flash
@@ -128,6 +145,10 @@ public class DeepSeekAdaptorTest {
         assertEquals("映射后应 200", 200, result.getStatusCode());
     }
 
+    /**
+     * 数组模型映射：采样在路由阶段一次完成并预烘焙进请求体，适配器只做透传。
+     * <p>本地仅有 deepseek-flash，用双目标同值演示采样机制。
+     */
     @Test
     public void forward_with_array_model_mapping() {
         // 数组映射：采样在路由阶段一次完成并预烘焙进 body，适配器透传
@@ -155,6 +176,9 @@ public class DeepSeekAdaptorTest {
         assertEquals("预烘焙后应 200", 200, result.getStatusCode());
     }
 
+    /**
+     * 流式转发链路：SSE 字节流透传，直至收到 {@code [DONE]} 帧。
+     */
     @Test
     public void forward_stream_sse() throws Exception {
         // 流式转发：字节流透传，SSE 帧直到 [DONE]

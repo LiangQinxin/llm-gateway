@@ -4,6 +4,8 @@
 
 Status: accepted（取代 ADR-0007 中「ChannelSelection 属 proxy 域 / ProxyCase 编排水路计划」与 ADR-0002 中 proxy 域「路由计划、渠道分发」条目；上游协议转换仍归 ILlmAdaptor，ADR-0006 不变；字节级透传与 emitter 绑定仍按 ADR-0008，不变）。
 
+> **Update (ADR-0012)**：§3 步骤 2/4/5 的「内存找第一个命中」与「采样在路由阶段一次预烘焙」已被 ADR-0012 取代——改为 ChannelSelector 构建 failover 队列、按序尝试、每次尝试前重新烘焙 body.model；失败按分类切换下一渠道。
+
 ## Decision
 
 ### 1. 门面接口 `IDispatchInvoker`（channel 域 port）

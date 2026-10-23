@@ -27,7 +27,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * 管理面 Controller 契约测试。真实 Spring 容器 + 本地 MySQL，事务回滚。
+ * 管理面（/admin/api/**）Controller 契约测试。
+ * <p>真实 Spring 容器 + 本地 MySQL，事务回滚，覆盖渠道、密钥、请求日志三组管理接口。
+ * <pre>
+ * 创建 → 查询 → 修改 → 启停 → 删除
+ * </pre>
  */
 @Slf4j
 @RunWith(SpringRunner.class)
@@ -44,6 +48,9 @@ public class AdminApiTest {
     @Resource
     private RequestLogCase requestLogCase;
 
+    /**
+     * 渠道管理接口全生命周期：创建 → 查询启用列表 → 修改 → 启停 → 删除。
+     */
     @Test
     public void channel_admin_api_crud_and_toggle() throws Exception {
         MvcResult created = mockMvc.perform(post("/admin/api/channels")
@@ -101,6 +108,9 @@ public class AdminApiTest {
                 .andExpect(status().isOk());
     }
 
+    /**
+     * 密钥管理接口全生命周期：创建 → 详情查询 → 启停 → 删除。
+     */
     @Test
     public void api_key_admin_api_crud_and_toggle() throws Exception {
         MvcResult created = mockMvc.perform(post("/admin/api/keys")
@@ -133,6 +143,9 @@ public class AdminApiTest {
                 .andExpect(status().isOk());
     }
 
+    /**
+     * 请求日志管理接口：分页查询、详情读取与按时间清理/全量清空。
+     */
     @Test
     public void request_log_admin_api_page_detail_and_cleanup() throws Exception {
         RequestLog log = requestLogCase.record(RequestLog.builder()
@@ -176,6 +189,7 @@ public class AdminApiTest {
                         .page(1).size(10).build()).getTotal());
     }
 
+    /** 解析响应 JSON 并取出 data 节点 */
     private static JSONObject data(MvcResult result) throws Exception {
         JSONObject response = JSON.parseObject(result.getResponse().getContentAsString());
         return response.getJSONObject("data");

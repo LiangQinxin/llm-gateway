@@ -28,6 +28,11 @@ public class HeadlessRuntimeTest {
     @Resource
     private Environment environment;
 
+    /**
+     * 纯 headless MVC 运行形态与并发配置校验：
+     * <p>① 随机端口应真实启动；② 异步请求超时 600000ms；③ Tomcat 线程池上限 200；
+     * ④ 不得引入 WebFlux 响应式栈与 JavaFX 桌面壳。
+     */
     @Test
     public void headless_mvc_runtime_and_async_limits() {
         assertTrue("应启动真实 HTTP 端口", port > 0);

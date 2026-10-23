@@ -21,10 +21,15 @@ import static org.junit.Assert.assertTrue;
 @SpringBootTest
 public class DomainBoundariesTest {
 
+    /** 十域清单：与 AGENTS.md 约定的域集合保持一致 */
     private static final List<String> DOMAINS = List.of(
             "proxy", "channel", "identity", "security", "audit",
             "account", "settings", "knowledge", "wiki", "mcp");
 
+    /**
+     * 十域同构结构校验：每个域必须含 model/service/adapter 三层目录，
+     * case 层存在对应域包，且 quota 不得独立成域。
+     */
     @Test
     public void ten_domains_keep_isomorphic_layer_structure() {
         Path root = Path.of(System.getProperty("user.dir")).toAbsolutePath().normalize();

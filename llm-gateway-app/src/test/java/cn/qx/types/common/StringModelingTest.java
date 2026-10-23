@@ -28,6 +28,13 @@ import static org.junit.Assert.assertTrue;
 @SpringBootTest
 public class StringModelingTest {
 
+    /**
+     * String 时间/ID 契约校验。
+     * <pre>
+     * ISO-8601 带偏移 32 字符 → OffsetDateTime 可解析；UUID 36 字符可往返；
+     * Z 偏移规范化为 +08:00 微秒格式；无偏移时间拒绝
+     * </pre>
+     */
     @Test
     public void time_and_id_follow_string_contract() {
         String now = TimeUtils.now();
@@ -45,6 +52,11 @@ public class StringModelingTest {
                 () -> TimeUtils.normalize("2026-10-20 12:00:00"));
     }
 
+    /**
+     * JSON 列建模契约：库表列保持原始 String，便捷方法按需解析。
+     * <p>覆盖 Channel（activeModels / activeModelMapping / toChannelConfig）、
+     * ApiKey（allowsChannel / allowsModel）与 RequestLog（requestBodyJson / responseChoicesJson）。
+     */
     @Test
     public void json_columns_keep_raw_string_and_parse_on_demand() {
         Channel channel = Channel.builder()

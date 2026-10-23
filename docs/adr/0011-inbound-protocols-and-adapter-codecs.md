@@ -78,7 +78,7 @@ ProxyCase 仍执行与渠道无关的空 assistant 消息清洗；适配器命�
 ## Consequences
 
 - 新增：三端点 Controller 映射、协议族策略注册表（case 层）、`ProxyRequest` 入站协议标签、`MsCodec`/`RpCodec`（含 SSE 帧转换）、各适配器 `nativeProtocols()`。
-- `AnthropicAdaptor` 从"只有连通性 test"升级为完整适配器（ms 原生透传 + cc/rp 入站转换）；`OpenAICompatibleAdaptor` 保留 cc/rp 原生透传 + ms/rp 入站转换。
+- `AnthropicAdaptor` 从"只有连通性 test"升级为完整适配器（ms 原生透传 + cc/rp 入站转换）；openai/custom/deepseek/google 直连 `AbstractLlmAdaptor` 各自声明私有原生端点表（已修订 2026-10-23：OpenAI 兼容中间层 `OpenAICompatibleAdaptor` 删除——各厂商端点能力不一致，不设共享默认端点，能力矩阵按厂商自包含维护）。
 - 出站 HTTP 执行集中到 `infrastructure.gateway`（GatewayHttpClient，共享连接池， grill Q4 拍板）；抽象基类 `AbstractLlmAdaptor` 骨架（Template Method）落位。
 - 测试：`app/src/test` 下 `@SpringBootTest` 真实容器 + MockWebServer 整链路，断言正文文本原文相等、usage 数值 1:1、SSE 帧序列逐条一致。
 - 已知缺口：ac（ollama 原生 /api/chat）本期不做；rp 入站打 ms 渠道为两跳转换（经 cc 中转，无保真损失）。
