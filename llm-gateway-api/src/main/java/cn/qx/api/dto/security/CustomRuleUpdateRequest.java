@@ -8,8 +8,12 @@ import lombok.Data;
 @Data
 public class CustomRuleUpdateRequest {
 
+    /** 新匹配模式（null=不改） */
     private String pattern;
+    /** 新严重度（null=不改） */
     private String severity;
+    /** 新命中动作（null=不改） */
     private String action;
+    /** 新描述（null=不改） */
     private String description;
 }

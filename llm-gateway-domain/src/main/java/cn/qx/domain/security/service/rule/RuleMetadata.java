@@ -31,7 +31,10 @@ public class RuleMetadata {
     private String description;
     /** 全局类别开关 key；null 表示只受 enabled 控制 */
     private String toggleKey;
+    /** 是否启用（生效还需 toggleKey 对应类别开关开启）。 */
     private boolean enabled;
+    /** 创建时间（ISO-8601 带偏移）。 */
     private String createdAt;
+    /** 更新时间（ISO-8601 带偏移）。 */
     private String updatedAt;
 }

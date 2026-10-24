@@ -28,9 +28,13 @@ public class SecurityRuleCacheServiceImpl implements ISecurityRuleCacheService {
             "credential_password", "credential_token", "credential_secret",
             "network_internal_probe");
 
+    /** 内置规则元数据仓储端口。 */
     private final IBuiltinRuleRepository builtinRuleRepository;
+    /** 自定义黑白名单仓储端口。 */
     private final ICustomRuleRepository customRuleRepository;
+    /** 是否启用进程内缓存（false 则每次读取实时查库）。 */
     private final boolean cacheEnabled;
+    /** 不可变缓存快照（volatile 保证可见性，读多写少整体替换）。 */
     private volatile Snapshot snapshot;
 
     public SecurityRuleCacheServiceImpl(IBuiltinRuleRepository builtinRuleRepository,
@@ -149,6 +153,11 @@ public class SecurityRuleCacheServiceImpl implements ISecurityRuleCacheService {
         return defaults;
     }
 
+    /**
+     * 规则缓存不可变快照（整体替换，读多写少）。
+     * @param builtin 内置规则快照：ruleId → 元数据
+     * @param custom  自定义黑白名单规则快照
+     */
     private record Snapshot(Map<String, RuleMetadata> builtin,
                             List<CustomRuleMeta> custom) {
     }

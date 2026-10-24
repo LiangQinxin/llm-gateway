@@ -17,6 +17,7 @@ import java.util.Locale;
 @Component
 public class CustomRuleMatcherServiceImpl implements ICustomRuleMatcherService {
 
+    /** 规则元数据缓存，提供自定义黑白名单列表。 */
     private final ISecurityRuleCacheService ruleCache;
 
     public CustomRuleMatcherServiceImpl(ISecurityRuleCacheService ruleCache) {

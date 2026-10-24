@@ -302,8 +302,11 @@ public class ProxyCase implements IProxyCase {
      */
     private static final class UsageTrackingInputStream extends FilterInputStream {
 
+        /** SSE usage 解析器（旁路接收上游字节） */
         private final ISseUsageParserService parser;
+        /** EOF 后一次性记账的消费器（入参为 totalTokens） */
         private final java.util.function.LongConsumer recorder;
+        /** 是否已记账（防 EOF 重复触发） */
         private boolean recorded;
 
         private UsageTrackingInputStream(InputStream input,

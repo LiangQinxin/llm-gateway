@@ -54,6 +54,11 @@ public class SecurityRiskScorer {
         return new RiskAssessment(score, RiskLevel.fromScore(score));
     }
 
+    /**
+     * 一次三段评分的结果。
+     * @param score 三段制风险总分（0–100，基础分+组合加分后封顶）
+     * @param level 由分数反推的风险等级（只升不降）
+     */
     public record RiskAssessment(int score, RiskLevel level) {
     }
 }

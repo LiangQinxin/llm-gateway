@@ -24,6 +24,7 @@ import static org.junit.Assert.assertEquals;
 @SpringBootTest
 public class SecurityRiskScorerTest {
 
+    /** 被测的风险评分器：对多条扫描发现做基础分与组合加分并按 100 封顶。 */
     @Resource
     private SecurityRiskScorer riskScorer;
 

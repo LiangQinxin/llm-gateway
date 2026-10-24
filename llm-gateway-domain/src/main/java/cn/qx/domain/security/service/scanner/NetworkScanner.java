@@ -21,21 +21,29 @@ import java.util.regex.Pattern;
 @Component
 public class NetworkScanner implements ISubScanner {
 
+    /** 子扫描器名称（注册到引擎，与白名单类别映射一致）。 */
     private static final String NAME = "network";
+    /** 外联类发现挂载的风险类别（EXFIL 外联/外泄）。 */
     private static final List<SecurityCategory> EXFIL_CATEGORIES =
             List.of(SecurityCategory.EXFIL);
+    /** 常见外联/外泄接收端域名表（webhook、临时转发、粘帖服务等）。 */
     private static final Set<String> EXFIL_DOMAINS = Set.of(
             "webhook.site", "requestbin", "ngrok.io", "ngrok-free.app", "transfer.sh",
             "0x0.st", "pastebin.com", "ipfs.io", "interact.sh");
+    /** 公网 IP 探测服务域名表（命中即视为外联探测）。 */
     private static final Set<String> PROBE_DOMAINS = Set.of(
             "ifconfig.me", "icanhazip.com", "ipinfo.io", "ip-api.com", "ipify.org",
             "checkip.amazonaws.com");
+    /** 放行的本机回环域名（不命中，避免误报）。 */
     private static final Set<String> BENIGN_DOMAINS = Set.of(
             "localhost", "localhost.localdomain");
 
+    /** 域名提取正则（捕获主域部分）。 */
     private static final Pattern DOMAIN = Pattern.compile(
             "(?i)\\b(?:https?://)?([a-z0-9](?:[a-z0-9.-]*[a-z0-9])?\\.[a-z]{2,})\\b");
+    /** IPv4 地址提取正则。 */
     private static final Pattern IPV4 = Pattern.compile("\\b(\\d{1,3}(?:\\.\\d{1,3}){3})\\b");
+    /** IPv6 本地链路（fe80::/10）与唯一本地（fd00::/8）地址正则。 */
     private static final Pattern IPV6 = Pattern.compile(
             "(?i)\\b((?:fe[89ab][0-9a-f]:[0-9a-f:]*|fd[0-9a-f:]*))\\b");
 

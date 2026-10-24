@@ -34,6 +34,7 @@ import static org.junit.Assert.assertTrue;
 @SpringBootTest
 public class SecurityScannerEngineTest {
 
+    /** 被测的安全扫描引擎：断言 JSON 钻取、评分、打码、截断与策略动作。 */
     @Resource
     private ISecurityScanner securityScanner;
 

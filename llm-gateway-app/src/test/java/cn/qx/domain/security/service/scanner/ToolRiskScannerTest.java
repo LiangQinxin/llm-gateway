@@ -29,6 +29,7 @@ import static org.junit.Assert.assertTrue;
 @SpringBootTest
 public class ToolRiskScannerTest {
 
+    /** 被测的安全扫描引擎：仅开启工具风险类别，经其断言 ToolRiskScanner 的命中与组合外传。 */
     @Resource
     private ISecurityScanner securityScanner;
 

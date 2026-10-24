@@ -31,6 +31,7 @@ import static org.junit.Assert.assertTrue;
 @SpringBootTest
 public class TrackingScannerTest {
 
+    /** 被测的安全扫描引擎：仅开启追踪类别，经其断言 TrackingScanner 的分级与不参与组合加分。 */
     @Resource
     private ISecurityScanner securityScanner;
 

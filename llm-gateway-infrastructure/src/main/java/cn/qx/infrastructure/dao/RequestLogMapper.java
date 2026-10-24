@@ -14,17 +14,24 @@ import java.util.List;
 @Mapper
 public interface RequestLogMapper {
 
+    /** 新增一条请求日志，自增主键 seq 通过 useGeneratedKeys 回写 PO。 */
     int insert(RequestLogPO requestLogPO);
 
+    /** 按主键 id 查询请求日志。 */
     RequestLogPO queryById(@Param("id") String id);
 
+    /** 按查询条件（model/apiKeyId/channelId/statusCode/createdFrom~createdTo）统计条数。 */
     long count(@Param("q") RequestLogQuery query);
 
+    /** 按查询条件分页查询，按 seq 倒序，LIMIT/OFFSET 取自条件。 */
     List<RequestLogPO> queryPage(@Param("q") RequestLogQuery query);
 
+    /** 按主键删除请求日志，返回影响行数。 */
     int deleteById(@Param("id") String id);
 
+    /** 删除 created_at 早于指定时间点的日志，返回影响行数。 */
     int deleteBefore(@Param("createdAt") String createdAt);
 
+    /** 清空全部请求日志，返回影响行数。 */
     int clearAll();
 }

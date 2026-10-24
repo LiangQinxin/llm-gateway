@@ -29,6 +29,7 @@ import static org.junit.Assert.assertTrue;
 @SpringBootTest
 public class PathScannerTest {
 
+    /** 被测的安全扫描引擎：仅开启路径类别，经其断言 PathScanner 的命中。 */
     @Resource
     private ISecurityScanner securityScanner;
 

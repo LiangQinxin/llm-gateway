@@ -20,8 +20,11 @@ import org.springframework.stereotype.Component;
 @Order(0)
 public class RuleSeedService implements ApplicationRunner {
 
+    /** 内置规则仓储端口，执行幂等补插。 */
     private final IBuiltinRuleRepository repository;
+    /** 规则缓存服务，播种后刷新内存缓存。 */
     private final ISecurityRuleCacheService ruleCache;
+    /** 是否在启动时播种内置规则（配置 security.rules.seed-on-start，默认 true）。 */
     private final boolean seedOnStart;
 
     public RuleSeedService(IBuiltinRuleRepository repository,

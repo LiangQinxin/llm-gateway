@@ -31,6 +31,7 @@ import static org.junit.Assert.assertTrue;
 @SpringBootTest
 public class UnicodeScannerTest {
 
+    /** 被测的安全扫描引擎：仅开启 Unicode 隐写类别，经其断言 UnicodeScanner 的命中与脱敏降级。 */
     @Resource
     private ISecurityScanner securityScanner;
 

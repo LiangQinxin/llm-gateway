@@ -17,7 +17,9 @@ import java.util.List;
 @Component
 public class UnicodeScanner implements ISubScanner {
 
+    /** 子扫描器名称（注册到引擎）。 */
     private static final String NAME = "unicode";
+    /** 本扫描器发现挂载的风险类别（隐写）。 */
     private static final List<SecurityCategory> CATEGORIES =
             List.of(SecurityCategory.STEGANOGRAPHY);
 
@@ -116,6 +118,12 @@ public class UnicodeScanner implements ISubScanner {
         return findings;
     }
 
+    /**
+     * 单个 Unicode 码点的分类结果。
+     * @param ruleId   命中规则 ID（如 unicode_zero_width / unicode_bidi）
+     * @param title    人读分类标题
+     * @param severity 命中后的严重度
+     */
     private record Classification(String ruleId, String title, SecuritySeverity severity) {
     }
 }

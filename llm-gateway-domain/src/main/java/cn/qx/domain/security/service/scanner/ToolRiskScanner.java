@@ -123,6 +123,13 @@ public class ToolRiskScanner implements ISubScanner {
                 "Suspected data exfiltration command detected", false));
     }
 
+    /**
+     * 单条危险工具扫描规则。
+     * @param ruleId   规则 ID（与内置规则表一致）
+     * @param title    人读规则标题
+     * @param pattern  危险工具调用特征匹配正则
+     * @param severity 命中后的严重度
+     */
     private record Rule(String ruleId, String title, Pattern pattern, SecuritySeverity severity) {
     }
 

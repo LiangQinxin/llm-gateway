@@ -12,7 +12,9 @@ import java.util.List;
 @Mapper
 public interface SecurityFindingMapper {
 
+    /** 批量插入安全发现记录（foreach 展开多值 VALUES）。 */
     int insertAll(@Param("items") List<SecurityFindingPO> items);
 
+    /** 按请求日志 id 统计安全发现条数。 */
     long countByLogId(@Param("logId") String logId);
 }

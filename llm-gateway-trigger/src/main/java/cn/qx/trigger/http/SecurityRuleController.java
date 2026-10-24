@@ -30,6 +30,7 @@ import java.util.List;
 @RequestMapping("/admin/api/security/rules")
 public class SecurityRuleController {
 
+    /** 安全规则用例：内置规则与自定义规则的管理编排。 */
     @Resource
     private ISecurityRuleCase securityRuleCase;
 

@@ -36,15 +36,19 @@ import static org.junit.Assert.assertTrue;
 @Transactional
 public class SecurityRuleEngineTest {
 
+    /** 被测的安全扫描引擎：在调整规则元数据后断言其扫描结果。 */
     @Resource
     private ISecurityScanner securityScanner;
 
+    /** 安全规则用例：更新内置规则开关/严重度，增删自定义黑白名单规则。 */
     @Resource
     private ISecurityRuleCase securityRuleCase;
 
+    /** 内置规则仓储：读取与删除规则元数据，以断言播种与覆盖行为。 */
     @Resource
     private IBuiltinRuleRepository builtinRuleRepository;
 
+    /** 规则播种服务：触发幂等播种，验证不覆盖用户修改、并补插缺失内置规则。 */
     @Resource
     private RuleSeedService ruleSeedService;
 

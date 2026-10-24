@@ -28,12 +28,15 @@ import static org.junit.Assert.assertTrue;
 @SpringBootTest(properties = "security.audit.mode=block")
 public class ProxySecurityAuditTest {
 
+    /** 被测的代理用例：断言风险 body 在 prepare 阶段即被安全阻断。 */
     @Resource
     private ProxyCase proxyCase;
 
+    /** 请求日志用例：分页查询断言阻断日志已落库。 */
     @Resource
     private IRequestLogCase requestLogCase;
 
+    /** 安全发现仓储：断言该阻断请求已产生安全发现记录。 */
     @Resource
     private ISecurityFindingRepository securityFindingRepository;
 

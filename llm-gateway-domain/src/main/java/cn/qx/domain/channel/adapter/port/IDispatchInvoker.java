@@ -8,5 +8,6 @@ import cn.qx.domain.channel.model.valobj.ProxyRequest;
  */
 public interface IDispatchInvoker {
 
+    /** 执行渠道分发：按请求选择渠道并向上游转发，返回分发结果。 */
     DispatchOutcome invoke(ProxyRequest request);
 }

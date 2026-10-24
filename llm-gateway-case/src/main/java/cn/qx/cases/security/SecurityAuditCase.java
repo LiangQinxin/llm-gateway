@@ -28,21 +28,27 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Service
 public class SecurityAuditCase implements ISecurityAuditCase {
 
+    /** 安全扫描引擎端口 */
     @Resource
     private ISecurityScanner securityScanner;
 
+    /** 请求体递归脱敏器端口 */
     @Resource
     private IRecursiveRedactorService recursiveRedactor;
 
+    /** 请求日志用例（风险路径留痕） */
     @Resource
     private IRequestLogCase requestLogCase;
 
+    /** 安检发现仓储端口 */
     @Resource
     private ISecurityFindingRepository securityFindingRepository;
 
+    /** 全局安全扫描配置（开关与策略档位） */
     @Resource
     private ScanSettings securityScanSettings;
 
+    /** 编程式事务管理器（留痕落库用） */
     @Resource
     private PlatformTransactionManager transactionManager;
 

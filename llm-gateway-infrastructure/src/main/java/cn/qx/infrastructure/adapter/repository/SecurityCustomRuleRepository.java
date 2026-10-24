@@ -17,6 +17,7 @@ import java.util.List;
 @Repository
 public class SecurityCustomRuleRepository implements ICustomRuleRepository {
 
+    /** security_custom_rules 表 Mapper。 */
     @Resource
     private SecurityCustomRuleMapper mapper;
 

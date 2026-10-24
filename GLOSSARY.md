@@ -13,8 +13,16 @@ _Avoid_: upstream、provider、上游渠道
 _Avoid_: token、API 凭证、api_key（列名保留）
 
 **RequestLog（请求日志）**:
-每次转发请求落一条的不可变审计记录，seq 自增保证顺序，只增不改；含安全审计字段（risk_level/risk_score/security_action 等）与请求/响应留存。
+数据面每次转发请求落一条的不可变审计记录（全量留痕，ADR-0015；唯一例外=全库零启用渠道 503 不记），seq 自增保证顺序，只增不改。请求体落**脱敏后转发体**（敏感信息不进库，参考 WaLiAPI 贯穿式脱敏）；非流式响应落同构 `response_choices`，流式由旁路累积、终止时重建；含安全审计字段（risk_level/risk_score/security_action 等）与用量/耗时。
 _Avoid_: audit row、log entry
+
+**静默化（Silent Logging）**:
+数据面留痕与配额记账的失败处理原则：写库失败 catch 记 warn，不影响主流程、不改变策略结果、不阻断透传（与 ADR-0010 best-effort 配额同款，ADR-0015 扩及全量日志与 findings）。唯一不记日志的业务分支：全库零启用渠道（503）。
+_Avoid_: 吞异常、失败即中断
+
+**日志保留档（log-policy）**:
+落库前正文裁剪档位（detailed/brief/basic，参考 WaLiAPI 审计策略，ADR-0015）：detailed 原样保存；brief 请求 messages 只留最新 3 条；basic 正文不落库。只裁剪 requestBody/responseChoices，不影响索引字段与用量统计；裁剪失败回退原样（宁缺勿错）。
+_Avoid_: 日志级别（log level 指日志框架级别）
 
 **Proxy 域**:
 转发主链路的编排层集合：入站解析、sanitize、identity 鉴权/配额、协议族解析、流监督（stream_supervisor）、单次尝试判定（attempt）、加权选 key（weighted_key，后续）、把结果绑到 ResponseBodyEmitter。**路由计划（route_plan）与渠道分发已下沉 channel 域（ADR-0009）**，不再是 proxy 域知识。HTTP 字节进出在 infrastructure，上游协议形状转换在渠道适配器（ADR-0006）。
@@ -71,6 +79,10 @@ _Avoid_: user、用户域、账号域（避免与"账号"泛指混淆）
 **Case（用例）**:
 编排层组件（cn.qx.cases.<域>.<Xxx>Case），注入域服务/仓储端口，产出协议无关的 <Xxx>Result。Controller 只做「解析→调 Case→序列化」。
 _Avoid_: service、facade、handler
+
+**ProxyCase（转发编排用例）**:
+proxy 域数据面转发编排用例，固定七步管道：解析模型 → 安全检查 → 找渠道 → 排队 → 循环转发 → 记日志 → 扣配额（ADR-0015）。鉴权/配额预检（401/403）在管道之前；成功产出结果对象，失败产出状态码+错误消息，状态码直接映射 HTTP 响应。职责分散——安全检查归 security 域（ISecurityAuditCase）、找渠道/排队/循环转发归 channel 域（IDispatchInvoker）、留痕归 audit 域（单写者 IDataPlaneAuditCase），ProxyCase 只串联不实现。
+_Avoid_: Pase（拼写错误）、核心编排
 
 **quota（配额）**:
 密钥额度语义：quota_limit=0 表示不限；quota_used 递增带封顶保护（超过上限后不再累加）。认证时预检超限拒绝（403 insufficient_quota）；用量 best-effort——流式依赖上游 usage 帧（需请求带 stream_options），拿不到则不记、不估算、不阻断透传（ADR-0010）。

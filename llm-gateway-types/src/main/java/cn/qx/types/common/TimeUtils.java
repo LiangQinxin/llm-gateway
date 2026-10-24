@@ -11,6 +11,7 @@ import java.util.UUID;
  */
 public final class TimeUtils {
 
+    /** 项目统一时间格式：ISO-8601 带偏移，微秒精度（yyyy-MM-dd'T'HH:mm:ss.SSSSSSXXX）。 */
     private static final DateTimeFormatter ISO_OFFSET =
             DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSSSSXXX");
     private static final ZoneOffset DEFAULT_OFFSET = ZoneOffset.ofHours(8);

@@ -28,6 +28,7 @@ import static org.junit.Assert.assertTrue;
 @SpringBootTest
 public class CredentialScannerTest {
 
+    /** 被测的安全扫描引擎：仅开启凭证类别，经其断言 CredentialScanner 的命中。 */
     @Resource
     private ISecurityScanner securityScanner;
 

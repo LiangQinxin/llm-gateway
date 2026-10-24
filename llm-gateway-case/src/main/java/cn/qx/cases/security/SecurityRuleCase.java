@@ -35,21 +35,26 @@ public class SecurityRuleCase implements ISecurityRuleCase {
 
     private static final int MAX_CUSTOM_RULES = 200;
     private static final Set<String> RULE_TYPES = Set.of("blacklist", "whitelist");
+    /** 自定义规则允许类别集合（domain/tool/path/keyword） */
     private static final Set<String> CUSTOM_CATEGORIES =
             Set.of("domain", "tool", "path", "keyword");
     private static final Set<String> CUSTOM_ACTIONS = Set.of("warn", "redact", "block");
 
     private final Object customRuleCreateLock = new Object();
 
+    /** 内置规则仓储端口 */
     @Resource
     private IBuiltinRuleRepository builtinRuleRepository;
 
+    /** 自定义规则仓储端口 */
     @Resource
     private ICustomRuleRepository customRuleRepository;
 
+    /** 安全规则进程内缓存服务 */
     @Resource
     private ISecurityRuleCacheService ruleCache;
 
+    /** 编程式事务管理器（重置/创建落库用） */
     @Resource
     private PlatformTransactionManager transactionManager;
 

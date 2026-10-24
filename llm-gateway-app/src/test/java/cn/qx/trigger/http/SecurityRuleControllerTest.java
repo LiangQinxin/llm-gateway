@@ -36,9 +36,11 @@ import static org.junit.Assert.assertTrue;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 public class SecurityRuleControllerTest {
 
+    /** 随机端口（测试用）：RANDOM_PORT 模式下注入的本机 HTTP 服务端口。 */
     @LocalServerPort
     private int port;
 
+    /** 安全扫描引擎：在管理面改配置后立即扫描，断言规则写操作已生效。 */
     @Resource
     private ISecurityScanner securityScanner;
 

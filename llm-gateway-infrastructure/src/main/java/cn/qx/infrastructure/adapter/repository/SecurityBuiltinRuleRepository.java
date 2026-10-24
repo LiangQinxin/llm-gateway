@@ -17,6 +17,7 @@ import java.util.List;
 @Repository
 public class SecurityBuiltinRuleRepository implements IBuiltinRuleRepository {
 
+    /** security_builtin_rules 表 Mapper。 */
     @Resource
     private SecurityBuiltinRuleMapper mapper;
 

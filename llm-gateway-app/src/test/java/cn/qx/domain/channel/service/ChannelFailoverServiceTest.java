@@ -50,9 +50,11 @@ public class ChannelFailoverServiceTest {
 
             """;
 
+    /** 被测的渠道分发调用器：断言 failover、模型烘焙、权重分摊等分发行为。 */
     @Resource
     private IDispatchInvoker dispatchInvoker;
 
+    /** 渠道用例：构造主备测试渠道并在收尾时删除。 */
     @Resource
     private ChannelCase channelCase;
 

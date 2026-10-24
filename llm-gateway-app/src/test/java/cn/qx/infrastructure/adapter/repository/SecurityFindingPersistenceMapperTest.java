@@ -30,6 +30,7 @@ import static org.junit.Assert.assertTrue;
 @SpringBootTest
 public class SecurityFindingPersistenceMapperTest {
 
+    /** 被测的持久化映射器：断言 ScanFinding → SecurityFindingPO 的类别/打码/哈希转换。 */
     @Resource
     private SecurityFindingPersistenceMapper mapper;
 

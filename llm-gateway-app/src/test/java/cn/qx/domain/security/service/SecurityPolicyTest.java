@@ -23,6 +23,7 @@ import static org.junit.Assert.assertEquals;
 @SpringBootTest
 public class SecurityPolicyTest {
 
+    /** 被测的安全策略：按严重度与审计模式矩阵判定放行/告警/脱敏/阻断动作。 */
     @Resource
     private SecurityPolicy securityPolicy;
 

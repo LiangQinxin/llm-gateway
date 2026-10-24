@@ -33,15 +33,24 @@ import java.util.stream.Collectors;
 @Service
 public class SecurityScannerImpl implements ISecurityScanner {
 
+    /** JSON 递归钻取最大深度（超出即截断，防深层嵌套耗尽）。 */
     private static final int MAX_DEPTH = 16;
+    /** JSON 钻取最大节点数（超出即停止，防超大对象耗尽）。 */
     private static final int MAX_NODES = 5000;
+    /** 单次扫描发现条数上限（超出即截断，兜底保护）。 */
     private static final int MAX_FINDINGS = 80;
 
+    /** 全部已注册子扫描器（按 Spring bean 注入，运行时按类别开关过滤启用）。 */
     private final List<ISubScanner> scanners;
+    /** 未显式传入配置时使用的默认扫描设置。 */
     private final ScanSettings defaultSettings;
+    /** 三段制风险评分器（基础分取最高 severity + 类别组合加分，封顶 100）。 */
     private final SecurityRiskScorer riskScorer;
+    /** 策略档位→最终动作映射器。 */
     private final SecurityPolicy securityPolicy;
+    /** 内置/自定义规则元数据缓存。 */
     private final ISecurityRuleCacheService ruleCache;
+    /** 自定义黑白名单匹配器（白名单豁免、黑名单产生 custom finding）。 */
     private final ICustomRuleMatcherService customRuleMatcher;
 
     public SecurityScannerImpl(List<ISubScanner> scanners,
@@ -257,9 +266,13 @@ public class SecurityScannerImpl implements ISecurityScanner {
     }
 
     private static final class TraversalState {
+        /** JSON 钻取已访问节点计数（超 MAX_NODES 即截断）。 */
         private int nodes;
+        /** 钻取到的字符串字段计数（用于 summary 统计）。 */
         private int strings;
+        /** 钻取是否因深度/节点数超限被截断。 */
         private boolean truncated;
+        /** 钻取是否因超限提前停止。 */
         private boolean stopped;
     }
 }

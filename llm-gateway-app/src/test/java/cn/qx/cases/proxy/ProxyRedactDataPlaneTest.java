@@ -37,18 +37,23 @@ import static org.junit.Assert.assertTrue;
 @SpringBootTest(properties = "security.audit.mode=redact")
 public class ProxyRedactDataPlaneTest {
 
+    /** 被测的代理用例：prepare 组装请求并 forward 真实转发上游。 */
     @Resource
     private ProxyCase proxyCase;
 
+    /** 渠道用例：构造指向 MockWebServer 的测试渠道并在收尾时删除。 */
     @Resource
     private ChannelCase channelCase;
 
+    /** API Key 用例：构造测试调用方密钥并在收尾时删除。 */
     @Resource
     private ApiKeyCase apiKeyCase;
 
+    /** 请求日志用例：分页查询断言脱敏标志与安全动作已落库。 */
     @Resource
     private IRequestLogCase requestLogCase;
 
+    /** 安全发现仓储：断言该请求已产生安全发现记录。 */
     @Resource
     private ISecurityFindingRepository securityFindingRepository;
 

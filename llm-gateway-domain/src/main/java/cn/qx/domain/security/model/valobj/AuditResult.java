@@ -17,11 +17,17 @@ import java.util.List;
 @AllArgsConstructor
 public class AuditResult {
 
+    /** 扫描方向（请求体 REQUEST / 响应体 RESPONSE）。 */
     private ScanPhase phase;
+    /** 本次扫描命中的安检发现列表。 */
     private List<ScanFinding> findings;
+    /** 三段制风险总分（0–100，封顶反推等级）。 */
     private int score;
+    /** 由总分反推的风险等级（只升不降）。 */
     private RiskLevel level;
+    /** 归一后的落库安全动作（Allow/Sanitize/Block）。 */
     private SecurityAction finalAction;
+    /** 是否被阻断（finalAction=Block 时为 true）。 */
     private boolean blocked;
 
     /** 阻断原因；BLOCK 时写入 summary。 */
@@ -30,6 +36,7 @@ public class AuditResult {
     /** 是否发生脱敏（REDACT/SANITIZE 生效）。 */
     private boolean sanitized;
 
+    /** 人读扫描结论摘要。 */
     private String summary;
 
     public static AuditResult clean(ScanPhase phase, String summary) {

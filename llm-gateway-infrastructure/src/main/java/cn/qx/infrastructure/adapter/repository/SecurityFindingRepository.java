@@ -16,9 +16,11 @@ import java.util.List;
 @Repository
 public class SecurityFindingRepository implements ISecurityFindingRepository {
 
+    /** security_audit_finding 表 Mapper，执行批量插入与计数。 */
     @Resource
     private SecurityFindingMapper mapper;
 
+    /** 领域发现对象到 PO 的转换器（同包辅助组件）。 */
     @Resource
     private SecurityFindingPersistenceMapper persistenceMapper;
 

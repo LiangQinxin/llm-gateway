@@ -24,6 +24,7 @@ import static org.junit.Assert.assertTrue;
 @SpringBootTest
 public class RecursiveRedactorTest {
 
+    /** 被测的递归脱敏器：断言转发前对 JSON 与正文中密钥的改写行为。 */
     @Resource
     private IRecursiveRedactorService recursiveRedactor;
 

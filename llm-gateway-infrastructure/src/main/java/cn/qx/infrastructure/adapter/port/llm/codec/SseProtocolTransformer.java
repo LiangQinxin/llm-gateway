@@ -20,44 +20,77 @@ import java.util.Set;
  */
 public class SseProtocolTransformer extends InputStream {
 
+    /** canonical 事件中承载跨协议透传扩展字段的键名（值含 event/delta/response/usage 分组）。 */
     private static final String EXTENSIONS_KEY = "_gateway_extensions";
+    /** CC（Chat Completions）标准事件顶层字段白名单，其余归入 event 扩展。 */
     private static final Set<String> CC_EVENT_FIELDS = Set.of(
             "id", "object", "created", "model", "choices", "usage");
+    /** CC choices[0].delta 标准字段白名单，其余归入 delta 扩展。 */
     private static final Set<String> CC_DELTA_FIELDS = Set.of(
             "role", "content", "tool_calls", "function_call", "refusal");
+    /** CC usage 标准字段白名单，其余归入 usage 扩展。 */
     private static final Set<String> CC_USAGE_FIELDS = Set.of(
             "prompt_tokens", "completion_tokens", "total_tokens");
+    /** MS（Messages）content_block_delta 事件顶层标准字段白名单。 */
     private static final Set<String> MS_DELTA_EVENT_FIELDS = Set.of("type", "index", "delta");
+    /** MS delta 体标准字段白名单（type/text）。 */
     private static final Set<String> MS_DELTA_FIELDS = Set.of("type", "text");
+    /** MS message_delta 事件顶层标准字段白名单。 */
     private static final Set<String> MS_USAGE_EVENT_FIELDS = Set.of("type", "delta", "usage");
+    /** MS usage 标准字段白名单（input_tokens/output_tokens）。 */
     private static final Set<String> MS_USAGE_FIELDS = Set.of("input_tokens", "output_tokens");
+    /** MS delta 中 stop_reason 字段白名单。 */
     private static final Set<String> MS_STOP_REASON_FIELDS = Set.of("stop_reason");
+    /** RP（Responses）response.output_text.delta 事件顶层标准字段白名单。 */
     private static final Set<String> RP_DELTA_EVENT_FIELDS = Set.of("type", "delta");
+    /** RP response.completed 事件顶层标准字段白名单。 */
     private static final Set<String> RP_USAGE_EVENT_FIELDS = Set.of("type", "response");
+    /** RP usage 标准字段白名单。 */
     private static final Set<String> RP_USAGE_FIELDS = Set.of(
             "input_tokens", "output_tokens", "total_tokens");
+    /** RP response 对象标准字段白名单，其余归入 response 扩展。 */
     private static final Set<String> RP_RESPONSE_FIELDS = Set.of(
             "id", "object", "model", "output", "usage", "status", "created_at");
 
+    /** 上游 SSE 输入缓冲读取器（UTF-8），按事件块逐行读取。 */
     private final BufferedReader reader;
+    /** 上游入站协议族（CC/MS/RP），决定 decode 分支。 */
     private final ProtocolFamily inbound;
+    /** 出站目标协议族（CC/MS/RP），决定 encode 分支。 */
     private final ProtocolFamily target;
+    /** 已编码、等待对外输出的字节缓冲（输出流数据源）。 */
     private final ByteArrayOutputStream pending = new ByteArrayOutputStream();
+    /** 上游流是否已读到末尾。 */
     private boolean eof;
+    /** 目标为 MS 时是否已发出 message_start（避免重复开流）。 */
     private boolean msStarted;
+    /** 目标为 MS 时是否已发出过 message_delta（用于收尾兜底补发）。 */
     private boolean msMessageDeltaSent;
+    /** 目标为 MS 时是否已发出 message_stop（收尾结束帧幂等标记）。 */
     private boolean msCompleted;
+    /** 目标为 RP 时是否已发出 response.completed（收尾结束帧幂等标记）。 */
     private boolean rpCompleted;
+    /** 上游是否到达结束标记（[DONE] 或 message_stop）。 */
     private boolean done;
+    /** 结束帧是否已编码下发（防止重复补发）。 */
     private boolean doneEmitted;
+    /** 当前流的响应 ID（从上游事件中提取并透传）。 */
     private String id = "";
+    /** 当前流的模型名（从上游事件中提取并透传）。 */
     private String model = "";
+    /** MS 入站累计用量（跨 message_start/message_delta 合并去零）。 */
     private JSONObject msUsage;
+    /** RP 入站用量（response.completed 携带，收尾时转为 CC 口径补发）。 */
     private JSONObject rpUsage;
+    /** RP usage 段扩展字段，收尾结束帧原样回填。 */
     private JSONObject rpUsageExtensions;
+    /** RP response.completed 事件扩展字段。 */
     private JSONObject rpCompletionExtensions;
+    /** RP delta 事件扩展字段。 */
     private JSONObject rpDeltaExtensions;
+    /** RP response 对象扩展字段。 */
     private JSONObject rpResponseExtensions;
+    /** 归一化结束原因（stop/length/tool_calls），供各协议互转。 */
     private String canonicalFinishReason;
 
     public SseProtocolTransformer(InputStream upstream,

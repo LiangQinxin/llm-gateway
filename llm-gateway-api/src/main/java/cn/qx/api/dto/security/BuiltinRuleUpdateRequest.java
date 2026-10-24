@@ -8,8 +8,12 @@ import lombok.Data;
 @Data
 public class BuiltinRuleUpdateRequest {
 
+    /** 新严重度（空=保持原值） */
     private String severity;
+    /** 新启停（null=保持原值） */
     private Boolean enabled;
+    /** 新标题（空=保持原值） */
     private String title;
+    /** 新描述（空=保持原值） */
     private String description;
 }

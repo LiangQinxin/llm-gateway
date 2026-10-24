@@ -4,6 +4,8 @@
 
 Status: accepted（取代 ADR-0009 §3 步骤 2/4/5 的「内存找第一个命中」与「采样在路由阶段一次预烘焙」表述；ProxyCase 门面边界、适配器路由、流式/非流式字节透传均不变）。
 
+> **Update (ADR-0015)**：新增可选 `dispatch.retry-count`（默认 null=不设上限、沿用排空队列；有值时最大尝试次数=min(retry+1, 队列长度)）；全库零启用渠道返回 `DispatchOutcome.noChannel()`（503 no_available_channel，唯一不记日志分支）而非 notFound；`DispatchOutcome` 增加 reason 区分 MODEL_NOT_FOUND / NO_AVAILABLE_CHANNEL（未新增态）；失败分类表与透传语义不变。
+
 ## Decision
 
 ### 1. 组件结构与职责
