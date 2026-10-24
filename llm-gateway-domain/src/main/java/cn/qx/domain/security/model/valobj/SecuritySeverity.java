@@ -23,4 +23,11 @@ public enum SecuritySeverity {
     public String code() {
         return name().toLowerCase();
     }
+
+    public static SecuritySeverity parse(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return valueOf(value.trim().toUpperCase());
+    }
 }

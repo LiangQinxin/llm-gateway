@@ -9,6 +9,9 @@ import cn.qx.domain.security.model.valobj.ScanRequest;
 import cn.qx.domain.security.model.valobj.ScanSettings;
 import cn.qx.domain.security.model.valobj.ScanText;
 import cn.qx.domain.security.model.valobj.SecurityAction;
+import cn.qx.domain.security.service.blacklist.ICustomRuleMatcherService;
+import cn.qx.domain.security.service.rule.RuleMetadata;
+import cn.qx.domain.security.service.rule.ISecurityRuleCacheService;
 import com.alibaba.fastjson2.JSON;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -38,15 +41,21 @@ public class SecurityScannerImpl implements ISecurityScanner {
     private final ScanSettings defaultSettings;
     private final SecurityRiskScorer riskScorer;
     private final SecurityPolicy securityPolicy;
+    private final ISecurityRuleCacheService ruleCache;
+    private final ICustomRuleMatcherService customRuleMatcher;
 
     public SecurityScannerImpl(List<ISubScanner> scanners,
                                ScanSettings defaultSettings,
                                SecurityRiskScorer riskScorer,
-                               SecurityPolicy securityPolicy) {
+                               SecurityPolicy securityPolicy,
+                               ISecurityRuleCacheService ruleCache,
+                               ICustomRuleMatcherService customRuleMatcher) {
         this.scanners = List.copyOf(scanners);
         this.defaultSettings = defaultSettings;
         this.riskScorer = riskScorer;
         this.securityPolicy = securityPolicy;
+        this.ruleCache = ruleCache;
+        this.customRuleMatcher = customRuleMatcher;
     }
 
     @Override
@@ -89,7 +98,21 @@ public class SecurityScannerImpl implements ISecurityScanner {
         List<ScanFinding> findings = new ArrayList<>();
         for (ScanText text : texts) {
             for (ISubScanner scanner : enabledScanners) {
-                findings.addAll(scanner.scan(text));
+                if (customRuleMatcher.isWhitelisted(scanner.scannerName(), text.text())) {
+                    continue;
+                }
+                for (ScanFinding finding : scanner.scan(text)) {
+                    addIfEnabled(findings, finding, settings);
+                    if (findings.size() >= MAX_FINDINGS) {
+                        break;
+                    }
+                }
+                if (findings.size() >= MAX_FINDINGS) {
+                    break;
+                }
+            }
+            for (ScanFinding finding : customRuleMatcher.customFindings(text)) {
+                findings.add(finding);
                 if (findings.size() >= MAX_FINDINGS) {
                     break;
                 }
@@ -125,6 +148,18 @@ public class SecurityScannerImpl implements ISecurityScanner {
                 .sanitized(finalAction == SecurityAction.SANITIZE)
                 .summary(summary)
                 .build();
+    }
+
+    private void addIfEnabled(List<ScanFinding> findings,
+                              ScanFinding finding,
+                              ScanSettings settings) {
+        RuleMetadata metadata = ruleCache.findBuiltin(finding.getRuleId());
+        if (!ruleCache.isRuleEnabled(metadata, settings)) {
+            return;
+        }
+        findings.add(finding.toBuilder()
+                .severity(ruleCache.effectiveSeverity(finding, metadata))
+                .build());
     }
 
     private static void traverse(Object node,

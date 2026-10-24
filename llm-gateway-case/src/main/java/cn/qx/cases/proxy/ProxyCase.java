@@ -2,6 +2,7 @@ package cn.qx.cases.proxy;
 
 import cn.qx.api.dto.proxy.ProxyResult;
 import cn.qx.api.IApiKeyCase;
+import cn.qx.api.ISecurityAuditCase;
 import cn.qx.domain.channel.adapter.port.IDispatchInvoker;
 import cn.qx.domain.channel.model.valobj.DispatchOutcome;
 import cn.qx.domain.channel.model.valobj.ForwardResult;
@@ -50,6 +51,10 @@ public class ProxyCase implements IProxyCase {
     @Resource
     private IApiKeyCase apiKeyCase;
 
+    /** 请求侧安全审计用例 */
+    @Resource
+    private ISecurityAuditCase securityAuditCase;
+
     /** SSE usage 解析器提供器（原型 Bean） */
     @Resource
     private ObjectProvider<ISseUsageParserService> usageParserProvider;
@@ -57,9 +62,13 @@ public class ProxyCase implements IProxyCase {
     /** 解析请求并按 body.stream（缺省 Accept）确定响应形态。 */
     @Override
     public ProxyRequest prepare(String rawBody, String acceptHeader, String inboundPath) {
+        String path = inboundPath == null || inboundPath.isBlank()
+                ? ProxyRequest.DEFAULT_INBOUND_PATH
+                : inboundPath;
+        String auditedBody = securityAuditCase.auditRequest(rawBody, null, path);
         JSONObject body;
         try {
-            body = JSON.parseObject(rawBody);
+            body = JSON.parseObject(auditedBody);
         } catch (Exception e) {
             throw new ProxyException(400, "invalid_request_error", "invalid_request_error", "请求体不是合法 JSON");
         }
@@ -70,9 +79,6 @@ public class ProxyCase implements IProxyCase {
         if (model == null || model.isBlank()) {
             throw new ProxyException(400, "invalid_request_error", "invalid_request_error", "缺少 model");
         }
-        String path = inboundPath == null || inboundPath.isBlank()
-                ? ProxyRequest.DEFAULT_INBOUND_PATH
-                : inboundPath;
         boolean streamCapable = !"/v1/embeddings".equals(path);
         Boolean streamField = body.getBoolean("stream");
         boolean stream = streamCapable
@@ -83,7 +89,7 @@ public class ProxyCase implements IProxyCase {
         MessageSanitizer.sanitizeMessages(body);
         log.info("入站请求: model={}, stream={}, body={}", model, stream, body);
         return new ProxyRequest(
-                model, body, stream, path, InboundProtocol.fromPath(path).getFamily(), rawBody);
+                model, body, stream, path, InboundProtocol.fromPath(path).getFamily(), auditedBody);
     }
 
     /** 一次调用渠道门面并转换为字节中立结果。 */

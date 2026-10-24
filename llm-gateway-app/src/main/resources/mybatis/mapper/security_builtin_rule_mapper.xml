@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.qx.infrastructure.dao.SecurityBuiltinRuleMapper">
+
+    <resultMap id="SecurityBuiltinRuleMap"
+               type="cn.qx.infrastructure.dao.po.SecurityBuiltinRulePO">
+        <id column="id" property="id"/>
+        <result column="rule_id" property="ruleId"/>
+        <result column="category" property="category"/>
+        <result column="name" property="name"/>
+        <result column="severity" property="severity"/>
+        <result column="pattern" property="pattern"/>
+        <result column="action" property="action"/>
+        <result column="title" property="title"/>
+        <result column="description" property="description"/>
+        <result column="toggle_key" property="toggleKey"/>
+        <result column="enabled" property="enabled"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <sql id="columns">
+        id, rule_id, category, name, severity, pattern, action, title, description,
+        toggle_key, enabled, created_at, updated_at
+    </sql>
+
+    <select id="listAll" resultMap="SecurityBuiltinRuleMap">
+        SELECT <include refid="columns"/> FROM security_builtin_rules ORDER BY id
+    </select>
+
+    <select id="queryByRuleId" resultMap="SecurityBuiltinRuleMap">
+        SELECT <include refid="columns"/> FROM security_builtin_rules WHERE rule_id = #{ruleId}
+    </select>
+
+    <insert id="insertIfAbsent" parameterType="cn.qx.infrastructure.dao.po.SecurityBuiltinRulePO">
+        INSERT INTO security_builtin_rules(
+            id, rule_id, category, name, severity, pattern, action, title, description,
+            toggle_key, enabled, created_at, updated_at
+        )
+        VALUES (
+            #{id}, #{ruleId}, #{category}, #{name}, #{severity}, NULL, NULL, #{title}, #{description},
+            #{toggleKey}, #{enabled}, #{createdAt}, #{updatedAt}
+        )
+        ON DUPLICATE KEY UPDATE rule_id = rule_id
+    </insert>
+
+    <update id="updateByRuleId" parameterType="cn.qx.infrastructure.dao.po.SecurityBuiltinRulePO">
+        UPDATE security_builtin_rules
+        SET severity = #{severity},
+            title = #{title},
+            description = #{description},
+            enabled = #{enabled},
+            updated_at = #{updatedAt}
+        WHERE rule_id = #{ruleId}
+    </update>
+
+    <delete id="deleteByRuleId">
+        DELETE FROM security_builtin_rules WHERE rule_id = #{ruleId}
+    </delete>
+
+    <delete id="deleteAll">
+        DELETE FROM security_builtin_rules
+    </delete>
+
+</mapper>

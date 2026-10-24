@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.qx.infrastructure.dao.SecurityCustomRuleMapper">
+
+    <resultMap id="SecurityCustomRuleMap"
+               type="cn.qx.infrastructure.dao.po.SecurityCustomRulePO">
+        <id column="id" property="id"/>
+        <result column="rule_type" property="ruleType"/>
+        <result column="category" property="category"/>
+        <result column="name" property="name"/>
+        <result column="pattern" property="pattern"/>
+        <result column="severity" property="severity"/>
+        <result column="action" property="action"/>
+        <result column="enabled" property="enabled"/>
+        <result column="description" property="description"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <sql id="columns">
+        id, rule_type, category, name, pattern, severity, action, enabled, description,
+        created_at, updated_at
+    </sql>
+
+    <select id="listAll" resultMap="SecurityCustomRuleMap">
+        SELECT <include refid="columns"/> FROM security_custom_rules ORDER BY created_at, id
+    </select>
+
+    <select id="listByType" resultMap="SecurityCustomRuleMap">
+        SELECT <include refid="columns"/> FROM security_custom_rules
+        WHERE rule_type = #{ruleType}
+        ORDER BY created_at, id
+    </select>
+
+    <select id="queryById" resultMap="SecurityCustomRuleMap">
+        SELECT <include refid="columns"/> FROM security_custom_rules WHERE id = #{id}
+    </select>
+
+    <select id="count" resultType="long">
+        SELECT COUNT(*) FROM security_custom_rules
+    </select>
+
+    <insert id="insert" parameterType="cn.qx.infrastructure.dao.po.SecurityCustomRulePO">
+        INSERT INTO security_custom_rules(
+            id, rule_type, category, name, pattern, severity, action, enabled, description,
+            created_at, updated_at
+        )
+        VALUES (
+            #{id}, #{ruleType}, #{category}, #{name}, #{pattern}, #{severity}, #{action},
+            #{enabled}, #{description}, #{createdAt}, #{updatedAt}
+        )
+    </insert>
+
+    <update id="update" parameterType="cn.qx.infrastructure.dao.po.SecurityCustomRulePO">
+        UPDATE security_custom_rules
+        SET rule_type = #{ruleType},
+            category = #{category},
+            name = #{name},
+            pattern = #{pattern},
+            severity = #{severity},
+            action = #{action},
+            enabled = #{enabled},
+            description = #{description},
+            updated_at = #{updatedAt}
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM security_custom_rules WHERE id = #{id}
+    </delete>
+
+</mapper>

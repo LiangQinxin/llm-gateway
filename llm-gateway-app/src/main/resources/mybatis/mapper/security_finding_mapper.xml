@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.qx.infrastructure.dao.SecurityFindingMapper">
+
+    <insert id="insertAll">
+        INSERT INTO security_audit_finding(
+            id, log_id, phase, category, rule_id, severity, title, description,
+            location, evidence_masked, evidence_hash, action, created_at
+        )
+        VALUES
+        <foreach collection="items" item="item" separator=",">
+            (
+                #{item.id}, #{item.logId}, #{item.phase}, #{item.category}, #{item.ruleId},
+                #{item.severity}, #{item.title}, #{item.description}, #{item.location},
+                #{item.evidenceMasked}, #{item.evidenceHash}, #{item.action}, #{item.createdAt}
+            )
+        </foreach>
+    </insert>
+
+    <select id="countByLogId" resultType="long">
+        SELECT COUNT(*) FROM security_audit_finding WHERE log_id = #{logId}
+    </select>
+
+</mapper>

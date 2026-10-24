@@ -27,9 +27,7 @@ public class SecurityFindingPersistenceMapper {
                 .id(UUID.randomUUID().toString())
                 .logId(logId)
                 .phase((phase == null ? ScanPhase.REQUEST : phase).name().toLowerCase())
-                .category(finding.getCategories() == null ? "" : finding.getCategories().stream()
-                        .map(SecurityCategory::code)
-                        .collect(Collectors.joining(",")))
+                .category(category(finding))
                 .ruleId(finding.getRuleId())
                 .severity(finding.getSeverity() == null ? "" : finding.getSeverity().code())
                 .title(finding.getTitle())
@@ -40,6 +38,15 @@ public class SecurityFindingPersistenceMapper {
                 .action(finding.getAction() == null ? "allow" : finding.getAction().code())
                 .createdAt(createdAt)
                 .build();
+    }
+
+    private static String category(ScanFinding finding) {
+        if (finding.getRuleId() != null && finding.getRuleId().startsWith("custom.")) {
+            return "custom";
+        }
+        return finding.getCategories() == null ? "" : finding.getCategories().stream()
+                .map(SecurityCategory::code)
+                .collect(Collectors.joining(","));
     }
 
     private static String maskEvidence(ScanFinding finding) {

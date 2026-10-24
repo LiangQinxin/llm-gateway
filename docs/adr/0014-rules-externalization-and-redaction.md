@@ -10,7 +10,7 @@
 - **既有表处置（R1-Q2）**：对已提交 schema 的两张表 **ALTER 收敛语义**（改列注释/枚举），不重建；`security_custom_rules.rule_type` 语义收敛为 `blacklist|whitelist`、`category` 为 `domain|tool|path|keyword`；schema 唯一来源 `docs/mysql/sql/llm_gateway.sql` 同步更新。
 - **种子机制**：启动幂等播种（`INSERT ... ON DUPLICATE KEY UPDATE rule_id=rule_id`，已存在跳过不覆盖用户修改、新 rule_id 补插）；`security.scan_tracking` 为新增 toggle_key 映射（对应 `ScanSettings.isTracking()`）；全局开关四键映射：scan_unicode/scan_network/scan_tools/scan_tracking。
 - **规则缓存**：启动全量加载 `ConcurrentHashMap`（规则 <100），管理接口写操作后 `refresh()` 立即生效；表读取失败 fail-open 降级代码默认（记 error，不阻断）。
-- **元数据驱动（引擎出口）**：去重后、评分前，按 ruleId 直查缓存：未入库保留代码默认、`enabled=0` 或全局开关关闭则丢弃、`severity` 表覆盖；**动态规则（credential_password/token/secret 值启发式）severity 只升不降**（R2-Q3：`max(表值, 代码启发式值)`），静态规则双向覆盖。
+- **元数据驱动（引擎出口）**：去重后、评分前，按 ruleId 直查缓存：未入库保留代码默认、`enabled=0` 或全局开关关闭则丢弃、`severity` 表覆盖；**动态规则 severity 只升不降**（R2-Q3：`max(表值, 代码启发式值)`），包括 `credential_password/token/secret` 与上下文相关的 `network_internal_probe`（云元数据 High / 普通内网 Medium），其余静态规则双向覆盖。
 - **黑白名单（R1-Q3）**：白名单按类别映射豁免（domain→network、path→file、keyword→credential、tool→tool），不放宽到整段全豁免；黑名单命中产生 `category="custom"` finding（categories 空、不参与组合加分），**severity 并入统一评分矩阵**出动作（action 列仅管理提示，不绕过 blockCritical）。
 - **递归脱敏**：新增 `RecursiveRedactor`（键名级 isSecretField 整值打码 + 字符串级按词切词命中前缀只涂该词 + PEM 整块替换；maskString 前4+****+后4、≤8 抹空；非法 JSON 降级原文正则兜底）；`RedactPatterns` 与 CredentialScanner 共享密钥前缀表（DRY，防"扫到但脱不掉"）。
 - **数据面挂载（R1-Q4，仅请求面 R2-Q2）**：新增 `SecurityAuditCase`（api 根包 `ISecurityAuditCase`）编排——扫描 → BLOCK 抛 `ProxyException(403, security_blocked)` → SANITIZE 递归脱敏改写 body → 转发；挂载点 `ProxyCase.prepare()`。**响应面检测不做**（流式透传红线 ADR-0008）。

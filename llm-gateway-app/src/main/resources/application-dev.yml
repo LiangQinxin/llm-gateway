@@ -37,7 +37,30 @@ mybatis:
     - classpath:/mybatis/mapper/channel_mapper.xml
     - classpath:/mybatis/mapper/api_key_mapper.xml
     - classpath:/mybatis/mapper/request_log_mapper.xml
+    - classpath:/mybatis/mapper/security_builtin_rule_mapper.xml
+    - classpath:/mybatis/mapper/security_custom_rule_mapper.xml
+    - classpath:/mybatis/mapper/security_finding_mapper.xml
   config-location:  classpath:/mybatis/config/mybatis-config.xml
+
+# 安全审计与规则治理
+security:
+  audit:
+    enabled: true
+    mode: warn
+    block-critical: false
+    scan-request: true
+    scan-response: false
+    max-scan-bytes: 0
+    scanners:
+      credential: true
+      path: true
+      unicode: false
+      network: false
+      tool-risk: false
+      tracking: false
+  rules:
+    seed-on-start: true
+    cache-enabled: true
 
 # 日志
 logging:

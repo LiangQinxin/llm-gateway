@@ -6,6 +6,7 @@ import cn.qx.domain.security.model.valobj.ScanSettings;
 import cn.qx.domain.security.model.valobj.ScanText;
 import cn.qx.domain.security.model.valobj.SecurityCategory;
 import cn.qx.domain.security.model.valobj.SecuritySeverity;
+import cn.qx.domain.security.service.redact.RedactPatterns;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -28,33 +29,33 @@ public class CredentialScanner implements ISubScanner {
 
     private static final List<Rule> BARE_RULES = List.of(
             rule("credential_apikey_openai", "OpenAI API Key",
-                    "\\bsk-(?:proj-)?[a-zA-Z0-9]{20,}\\b", SecuritySeverity.HIGH, false),
+                    RedactPatterns.OPENAI_API_KEY, SecuritySeverity.HIGH, false),
             rule("credential_apikey_anthropic", "Anthropic API Key",
-                    "\\bsk-ant-[a-zA-Z0-9_-]{20,}\\b", SecuritySeverity.HIGH, false),
+                    RedactPatterns.ANTHROPIC_API_KEY, SecuritySeverity.HIGH, false),
             rule("credential_apikey_generic", "Generic API Key",
                     "\\bkey-[a-zA-Z0-9]{20,}\\b", SecuritySeverity.HIGH, true),
             rule("credential_apikey_google", "Google API Key",
-                    "\\bAIza[a-zA-Z0-9_-]{35}\\b", SecuritySeverity.HIGH, false),
+                    RedactPatterns.GOOGLE_API_KEY, SecuritySeverity.HIGH, false),
             rule("credential_jwt", "JSON Web Token",
-                    "\\beyJ[a-zA-Z0-9_-]{5,}\\.[a-zA-Z0-9_-]{5,}\\.[a-zA-Z0-9_-]{5,}\\b",
+                    RedactPatterns.JWT,
                     SecuritySeverity.HIGH, false),
             rule("credential_aws_access", "AWS Access Key",
-                    "\\bAKIA[0-9A-Z]{16}\\b", SecuritySeverity.CRITICAL, false),
+                    RedactPatterns.AWS_ACCESS_KEY, SecuritySeverity.CRITICAL, false),
             rule("credential_aws_secret", "AWS Secret Key",
                     "(?i)\\baws_secret_access_key\\b\\s*[=:]\\s*[A-Za-z0-9+/=]{20,}",
                     SecuritySeverity.CRITICAL, false),
             rule("credential_github_pat", "GitHub Personal Access Token",
-                    "\\bghp_[a-zA-Z0-9]{36}\\b", SecuritySeverity.CRITICAL, false),
+                    RedactPatterns.GITHUB_PAT, SecuritySeverity.CRITICAL, false),
             rule("credential_github_oauth", "GitHub OAuth Token",
-                    "\\bgho_[a-zA-Z0-9]{36}\\b", SecuritySeverity.CRITICAL, false),
+                    RedactPatterns.GITHUB_OAUTH, SecuritySeverity.CRITICAL, false),
             rule("credential_github_pat_v2", "GitHub Fine-grained Token",
-                    "\\bgithub_pat_[a-zA-Z0-9_]{20,}\\b", SecuritySeverity.CRITICAL, false),
+                    RedactPatterns.GITHUB_FINE_GRAINED, SecuritySeverity.CRITICAL, false),
             rule("credential_slack_token", "Slack Token",
-                    "\\bxox[baprs]-[a-zA-Z0-9-]{10,}\\b", SecuritySeverity.HIGH, false),
+                    RedactPatterns.SLACK_TOKEN, SecuritySeverity.HIGH, false),
             rule("credential_bearer", "Bearer Token",
-                    "(?i)\\bbearer\\s+[a-zA-Z0-9._~+/=-]{20,}\\b", SecuritySeverity.HIGH, false),
+                    RedactPatterns.BEARER_TOKEN, SecuritySeverity.HIGH, false),
             rule("credential_private_key", "Private Key Header",
-                    "-----BEGIN (?:RSA |EC |OPENSSH |DSA |PGP )?PRIVATE KEY-----",
+                    RedactPatterns.PRIVATE_KEY_HEADER,
                     SecuritySeverity.CRITICAL, false)
     );
 

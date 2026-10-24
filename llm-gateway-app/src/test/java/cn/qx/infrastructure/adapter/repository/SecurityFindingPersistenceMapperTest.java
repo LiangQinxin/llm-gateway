@@ -60,4 +60,28 @@ public class SecurityFindingPersistenceMapperTest {
         assertEquals(64, po.getEvidenceHash().length());
         assertTrue(po.getEvidenceHash().matches("[0-9a-f]{64}"));
     }
+
+    /**
+     * 自定义黑名单 finding 无组合类别时仍以 custom 入库。
+     */
+    @Test
+    public void maps_custom_rule_category() {
+        ScanFinding finding = ScanFinding.builder()
+                .ruleId("custom.blacklist.keyword")
+                .scanner("custom")
+                .categories(List.of())
+                .severity(SecuritySeverity.HIGH)
+                .title("Custom rule")
+                .description("custom blacklist")
+                .location("$.messages[0].content")
+                .evidence("forbidden-marker")
+                .action(FindingAction.BLOCK)
+                .build();
+        SecurityFindingPO po = mapper.toPO(
+                "log-custom", ScanPhase.REQUEST, finding, "2026-10-24T20:00:00+08:00");
+        log.info("自定义规则发现 PO: {}", JSON.toJSONString(po));
+
+        assertEquals("custom", po.getCategory());
+        assertEquals("block", po.getAction());
+    }
 }
