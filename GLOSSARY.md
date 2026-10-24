@@ -127,3 +127,25 @@ _Avoid_: Warn、Redact（仅策略中间态，不落库）
 **类别（ScanCategory）**:
 ScanFinding 的风险类别标签，用于组合加分判断与归类：凭证、敏感文件、隐写、命令、外联、追踪。追踪类别不参与任何组合加分（组合表仅凭证/敏感文件/隐写/命令/外联四组）。
 _Avoid_: 分类、tag（避免与审计域之外的概念混淆）
+
+**内置规则（BuiltinRule）**:
+应用播种的安全规则元数据（rule_id/category/severity/toggle_key/enabled，65 条逐条入库，rule_id 与子扫描器代码 id 一致）。只存"什么级别、开不开"，不存匹配模式——匹配逻辑仍在子扫描器代码（ADR-0014）。
+_Avoid_: 规则表行、内置正则
+
+**自定义规则（CustomRule）**:
+用户维护的黑白名单（rule_type=blacklist|whitelist、category=domain|tool|path|keyword、pattern 子串匹配，禁用正则防 ReDoS）。黑名单命中产生 finding；白名单命中按类别映射豁免内置检测。
+_Avoid_: 自定义正则、rule entry
+
+**黑名单（Blacklist）**:
+自定义规则的一种：文本子串命中即产生 `category="custom"` 的 finding，severity 并入统一评分矩阵处置（不绕过 blockCritical 兜底）。
+
+**白名单（Whitelist）**:
+自定义规则的一种：按类别映射豁免内置检测（domain→network、path→file、keyword→credential、tool→tool），不放宽到整段文本全豁免（防一条 path 白名单意外放掉凭证检测）。
+
+**递归脱敏（RecursiveRedactor）**:
+转发前对请求体做结构化 JSON 递归改写的脱敏器：敏感键名整值打码（键名级）、文本内密钥前缀按词打码（字符串级）、PEM 私钥整块替换；非法 JSON 降级原文正则兜底。maskString 保留前 4 后 4（`sk-1234…` → `sk-1****cdef`），比审计证据打码更彻底。
+_Avoid_: 脱敏器、sanitizer（避免与既有 MessageSanitizer 混淆）
+
+**双层开关（toggle_key）**:
+内置规则与全局开关的关联键：规则生效 = `enabled=1` 且（toggle_key 为空 OR 对应类别开关开启）。四键映射：security.scan_unicode/scan_network/scan_tools/scan_tracking。
+_Avoid_: 类别总开关（表述需含"规则级 + 类别级"两层）
