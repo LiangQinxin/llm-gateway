@@ -8,7 +8,12 @@ import cn.qx.domain.security.model.valobj.SecuritySeverity;
 import org.springframework.stereotype.Component;
 
 /**
- * 安全策略矩阵与动作归一。
+ * 安全策略矩阵与动作归一；对齐安全审计引擎 decide_action：
+ * - OFF/AUDIT：全部放行仅记录；CONFIRM 预留，等同放行
+ * - WARN：Medium 以上 Warn（仍放行）
+ * - REDACT：High 以上 Redact（不可脱敏降级 Warn）
+ * - BLOCK：High 以上 Block
+ * - blockCritical 兜底：Critical 无视档位强制 Block
  */
 @Component
 public class SecurityPolicy {
@@ -25,7 +30,7 @@ public class SecurityPolicy {
         }
         SecurityMode effectiveMode = mode == null ? SecurityMode.WARN : mode;
         return switch (effectiveMode) {
-            case AUDIT -> FindingAction.ALLOW;
+            case OFF, AUDIT, CONFIRM -> FindingAction.ALLOW;
             case WARN -> switch (severity) {
                 case INFO, LOW -> FindingAction.ALLOW;
                 case MEDIUM, HIGH, CRITICAL -> FindingAction.WARN;

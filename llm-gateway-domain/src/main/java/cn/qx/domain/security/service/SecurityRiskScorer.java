@@ -12,6 +12,7 @@ import java.util.Set;
 
 /**
  * 三段评分：最高基础分 → 类别组合加分 → 分数区间定级。
+ * 总分封顶 100：score = min(100, 最高基础分 + 组合加分)，100 即"风险已拉满"。
  */
 @Component
 public class SecurityRiskScorer {
@@ -49,7 +50,7 @@ public class SecurityRiskScorer {
                 && categories.contains(SecurityCategory.SENSITIVE_FILE)) {
             combination += 20;
         }
-        int score = base + combination;
+        int score = Math.min(100, base + combination);
         return new RiskAssessment(score, RiskLevel.fromScore(score));
     }
 

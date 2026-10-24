@@ -35,11 +35,12 @@ public class UnicodeScannerTest {
     private ISecurityScanner securityScanner;
 
     /**
-     * 零宽、Bidi、私用区与同形字均命中隐写类别。
+     * 零宽（含 WORD JOINER U+2060）、Bidi、变体选择符（含补充平面）、
+     * 私用区与同形字均命中隐写类别。
      */
     @Test
     public void invisible_and_mixed_script_characters_are_detected() {
-        String body = "a\u200Bb \u202Eevil\u202C \uE000 token p\u0430ypal";
+        String body = "a\u200Bb \u202Eevil\u202C \uE000 \u2060w \uDB40\uDD00 token p\u0430ypal";
         AuditResult result = securityScanner.scan(ScanRequest.of(
                 body, SecurityTestSupport.unicodeOnly(SecurityMode.WARN)));
         log.info("Unicode 扫描结果: {}", JSON.toJSONString(result));
@@ -48,6 +49,7 @@ public class UnicodeScannerTest {
                 .map(ScanFinding::getRuleId).collect(Collectors.toSet());
         assertTrue(rules.contains("unicode_zero_width"));
         assertTrue(rules.contains("unicode_bidi"));
+        assertTrue(rules.contains("unicode_variation"));
         assertTrue(rules.contains("unicode_pua"));
         assertTrue(rules.contains("unicode_homoglyph"));
         assertTrue(result.getFindings().stream()

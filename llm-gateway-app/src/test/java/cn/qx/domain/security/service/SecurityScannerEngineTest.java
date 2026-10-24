@@ -16,13 +16,18 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
 
 import java.util.Collections;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 /**
- * SecurityScanner 引擎端口测试：JSON 钻取、原文兜底、边界、评分与策略。
+ * SecurityScanner 引擎端口测试：JSON 钻取、原文兜底、边界、评分、打码与策略。
+ * 评分与动作语义对齐安全审计引擎：min(100, 最高基础分+组合加分)、
+ * evidence_masked 打码、MAX_FINDINGS=80、blocked_reason/sanitized、响应侧开关。
  */
 @Slf4j
 @RunWith(SpringRunner.class)
@@ -62,10 +67,10 @@ public class SecurityScannerEngineTest {
     }
 
     /**
-     * Critical 基础分 90 + 凭证外联组合 25 = 115，不随发现数量线性叠加。
+     * Critical 基础分 90 + 凭证外联组合 25 = 115，按 min(100) 封顶为 100。
      */
     @Test
-    public void scoring_combines_categories_once() {
+    public void scoring_combines_categories_once_and_caps_at_100() {
         ScanSettings settings = ScanSettings.builder()
                 .mode(SecurityMode.WARN)
                 .path(false)
@@ -78,17 +83,67 @@ public class SecurityScannerEngineTest {
                 "AKIA1234567890ABCDEF https://webhook.site/demo", settings));
         log.info("组合评分结果: {}", JSON.toJSONString(result));
 
-        assertEquals(115, result.getScore());
+        assertEquals(100, result.getScore());
         assertEquals("Critical", result.getLevel().name().charAt(0)
                 + result.getLevel().name().substring(1).toLowerCase());
         assertEquals(SecurityAction.ALLOW, result.getFinalAction());
     }
 
     /**
-     * blockCritical 在 audit 档也强制阻断 Critical。
+     * 单条 finding 的 evidenceMasked 为打码证据：前 8 + **** + 后 4；
+     * 审计日志 JSON 不再包含证据原文。
      */
     @Test
-    public void block_critical_forces_block_in_any_mode() {
+    public void evidence_is_masked_in_findings_and_serialized_json() {
+        String secret = "sk-proj-abcdefghijklmnopqrstuvwx";
+        AuditResult result = securityScanner.scan(ScanRequest.of(
+                "{\"content\":\"" + secret + "\"}", SecurityTestSupport.credentialOnly(SecurityMode.WARN)));
+        log.info("打码结果: {}", JSON.toJSONString(result));
+
+        var finding = result.getFindings().stream()
+                .filter(f -> "credential_apikey_openai".equals(f.getRuleId()))
+                .findFirst().orElseThrow();
+        assertNotNull(finding.getEvidenceMasked());
+        assertFalse(finding.getEvidenceMasked().equals(secret));
+        assertTrue("前 8 字符保留", finding.getEvidenceMasked().startsWith("sk-proj-"));
+        assertTrue("后 4 字符保留", finding.getEvidenceMasked().endsWith("uvwx"));
+        assertTrue(finding.getEvidenceMasked().contains("****"));
+        String serialized = JSON.toJSONString(result);
+        assertFalse("序列化结果不得包含证据原文", serialized.contains("abcdefghijklmnopqrstuvwx"));
+    }
+
+    /**
+     * 长度 ≤16 的短证据原样返回（打码豁免），如 15 字符的内网 IP。
+     */
+    @Test
+    public void short_evidence_is_left_plain() {
+        AuditResult result = securityScanner.scan(ScanRequest.of(
+                "169.254.169.254", SecurityTestSupport.networkOnly(SecurityMode.WARN)));
+        log.info("短证据结果: {}", JSON.toJSONString(result));
+        assertTrue(result.getFindings().stream()
+                .anyMatch(f -> "169.254.169.254".equals(f.getEvidenceMasked())));
+    }
+
+    /**
+     * findings 上限 80 兜底：恶意构造的超大量 finding 被截断并标注 truncated。
+     */
+    @Test
+    public void findings_are_capped_at_max_findings() {
+        String body = JSON.toJSONString(IntStream.range(0, 100)
+                .mapToObj(i -> "sk-proj-" + repeat((i + 97) % 26 + 'a', 24))
+                .collect(Collectors.toList()));
+        AuditResult result = securityScanner.scan(ScanRequest.of(
+                body, SecurityTestSupport.credentialOnly(SecurityMode.WARN)));
+        log.info("findings 上限结果: {}", JSON.toJSONString(result));
+        assertTrue(result.getFindings().size() <= 80);
+        assertTrue(result.getSummary().contains("truncated=true"));
+    }
+
+    /**
+     * blockCritical 在 audit 档也强制阻断 Critical，并写入 blockedReason=summary。
+     */
+    @Test
+    public void block_critical_forces_block_and_records_reason() {
         ScanSettings settings = SecurityTestSupport.credentialOnly(SecurityMode.AUDIT)
                 .toBuilder().blockCritical(true).build();
         AuditResult result = securityScanner.scan(ScanRequest.of(
@@ -97,6 +152,23 @@ public class SecurityScannerEngineTest {
 
         assertEquals(SecurityAction.BLOCK, result.getFinalAction());
         assertTrue(result.isBlocked());
+        assertNotNull(result.getBlockedReason());
+        assertEquals(result.getSummary(), result.getBlockedReason());
+        assertFalse(result.isSanitized());
+    }
+
+    /**
+     * REDACT 档命中可脱敏 High 时产出 SANITIZE，并标记 sanitized=true。
+     */
+    @Test
+    public void redact_mode_marks_sanitized() {
+        AuditResult result = securityScanner.scan(ScanRequest.of(
+                "sk-proj-abcdefghijklmnopqrstuvwx", SecurityTestSupport.credentialOnly(SecurityMode.REDACT)));
+        log.info("REDACT 脱敏结果: {}", JSON.toJSONString(result));
+
+        assertEquals(SecurityAction.SANITIZE, result.getFinalAction());
+        assertTrue(result.isSanitized());
+        assertFalse(result.isBlocked());
     }
 
     /**
@@ -143,22 +215,65 @@ public class SecurityScannerEngineTest {
         assertTrue(result.getFindings().isEmpty());
         assertEquals(SecurityAction.ALLOW, result.getFinalAction());
         assertFalse(result.isBlocked());
+        assertFalse(result.isSanitized());
     }
 
     /**
-     * RESPONSE 仅预留端口，本轮不执行响应内容扫描。
+     * RESPONSE 默认不扫描（scanResponse=false 时 clean）。
      */
     @Test
-    public void response_phase_is_reserved_and_clean() {
+    public void response_phase_is_clean_by_default() {
         ScanRequest request = ScanRequest.builder()
                 .body("AKIA1234567890ABCDEF")
                 .phase(ScanPhase.RESPONSE)
                 .settings(SecurityTestSupport.credentialOnly(SecurityMode.BLOCK))
                 .build();
         AuditResult result = securityScanner.scan(request);
-        log.info("RESPONSE 预留结果: {}", JSON.toJSONString(result));
+        log.info("RESPONSE 默认结果: {}", JSON.toJSONString(result));
         assertEquals(ScanPhase.RESPONSE, result.getPhase());
         assertTrue(result.getFindings().isEmpty());
         assertEquals(SecurityAction.ALLOW, result.getFinalAction());
+    }
+
+    /**
+     * 开启 scanResponse 后，响应体同样过扫描引擎（响应也可能带出训练数据中的密钥）。
+     */
+    @Test
+    public void response_scanning_is_enabled_by_switch() {
+        ScanSettings settings = SecurityTestSupport.credentialOnly(SecurityMode.WARN)
+                .toBuilder().scanResponse(true).build();
+        ScanRequest request = ScanRequest.builder()
+                .body("AKIA1234567890ABCDEF")
+                .phase(ScanPhase.RESPONSE)
+                .settings(settings)
+                .build();
+        AuditResult result = securityScanner.scan(request);
+        log.info("RESPONSE 开启结果: {}", JSON.toJSONString(result));
+        assertEquals(ScanPhase.RESPONSE, result.getPhase());
+        assertFalse("响应体应被扫描", result.getFindings().isEmpty());
+        assertTrue(result.getFindings().stream()
+                .anyMatch(f -> "credential_aws_access".equals(f.getRuleId())));
+    }
+
+    /**
+     * max_scan_bytes 单字段性能保护：超长字段不进入扫描。
+     */
+    @Test
+    public void max_scan_bytes_skips_oversized_fields() {
+        ScanSettings settings = SecurityTestSupport.credentialOnly(SecurityMode.WARN)
+                .toBuilder().maxScanBytes(8).build();
+        AuditResult result = securityScanner.scan(ScanRequest.of(
+                "{\"content\":\"AKIA1234567890ABCDEF\"}", settings));
+        log.info("maxScanBytes 结果: {}", JSON.toJSONString(result));
+        assertEquals(0, result.getScore());
+        assertTrue(result.getFindings().isEmpty());
+    }
+
+    private static String repeat(int ch, int count) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < count; i++) {
+            sb.append((char) ch);
+        }
+        return sb.toString();
     }
 }

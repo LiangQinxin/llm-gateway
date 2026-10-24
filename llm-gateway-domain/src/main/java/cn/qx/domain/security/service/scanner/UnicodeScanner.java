@@ -61,7 +61,7 @@ public class UnicodeScanner implements ISubScanner {
 
     private static Classification classify(int codePoint) {
         if (codePoint == 0x200B || codePoint == 0x200C || codePoint == 0x200D
-                || codePoint == 0xFEFF) {
+                || codePoint == 0x2060 || codePoint == 0xFEFF) {
             return new Classification("unicode_zero_width", "Zero-width character",
                     SecuritySeverity.MEDIUM);
         }
@@ -70,7 +70,8 @@ public class UnicodeScanner implements ISubScanner {
             return new Classification("unicode_bidi", "Bidi control character",
                     SecuritySeverity.HIGH);
         }
-        if (codePoint >= 0xFE00 && codePoint <= 0xFE0F) {
+        if ((codePoint >= 0xFE00 && codePoint <= 0xFE0F)
+                || (codePoint >= 0xE0100 && codePoint <= 0xE01EF)) {
             return new Classification("unicode_variation", "Variation selector",
                     SecuritySeverity.MEDIUM);
         }

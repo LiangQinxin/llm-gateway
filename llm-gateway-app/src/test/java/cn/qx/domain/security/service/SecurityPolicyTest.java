@@ -59,6 +59,16 @@ public class SecurityPolicyTest {
     }
 
     @Test
+    public void off_and_confirm_modes_follow_engine_reference() {
+        for (SecuritySeverity severity : SecuritySeverity.values()) {
+            assertEquals("OFF 档只审计放行", FindingAction.ALLOW,
+                    securityPolicy.actionFor(severity, true, SecurityMode.OFF, false));
+            assertEquals("CONFIRM 档预留放行", FindingAction.ALLOW,
+                    securityPolicy.actionFor(severity, true, SecurityMode.CONFIRM, false));
+        }
+    }
+
+    @Test
     public void audit_and_warn_modes_follow_matrix() {
         assertEquals(FindingAction.ALLOW,
                 securityPolicy.actionFor(SecuritySeverity.CRITICAL, true, SecurityMode.AUDIT, false));

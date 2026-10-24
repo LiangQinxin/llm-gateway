@@ -15,6 +15,9 @@ public class SecurityAuditProperties {
     private boolean enabled = true;
     private String mode = "warn";
     private boolean blockCritical = false;
+    private boolean scanRequest = true;
+    private boolean scanResponse = false;
+    private int maxScanBytes = 0;
     private Scanners scanners = new Scanners();
 
     public ScanSettings toSettings() {
@@ -22,6 +25,9 @@ public class SecurityAuditProperties {
                 .enabled(enabled)
                 .mode(SecurityMode.parse(mode))
                 .blockCritical(blockCritical)
+                .scanRequest(scanRequest)
+                .scanResponse(scanResponse)
+                .maxScanBytes(maxScanBytes)
                 .credential(scanners.credential)
                 .path(scanners.path)
                 .unicode(scanners.unicode)

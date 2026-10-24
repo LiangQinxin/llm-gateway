@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -70,6 +71,14 @@ public class ToolRiskScanner implements ISubScanner {
         return settings != null && settings.isToolRisk();
     }
 
+    /** 敏感文件/环境变量读取特征（对齐安全审计引擎组合检测）。 */
+    private static final List<String> SENSITIVE_READS = List.of(
+            "cat .env", "cat ~/.ssh", "printenv", "base64 ~/.ssh");
+
+    /** 网络外发特征。 */
+    private static final List<String> NETWORK_OUT = List.of(
+            "curl ", "wget ", "http://", "https://");
+
     @Override
     public List<ScanFinding> scan(ScanText text) {
         if (text == null || text.text() == null || text.text().isEmpty()) {
@@ -87,7 +96,31 @@ public class ToolRiskScanner implements ISubScanner {
                         rule.title() + " detected", false));
             }
         }
+        exfiltrationCombination(text).forEach(findings::add);
         return findings;
+    }
+
+    /**
+     * 组合检测（行为链）：敏感文件读取 + 网络外发同时出现 → 数据外传 Critical。
+     * 单个特征可能只是正常使用，组合出现才是高危信号。
+     */
+    private static List<ScanFinding> exfiltrationCombination(ScanText text) {
+        String lower = text.text().toLowerCase(Locale.ROOT);
+        boolean readsSensitive = SENSITIVE_READS.stream().anyMatch(lower::contains);
+        boolean networkOut = NETWORK_OUT.stream().anyMatch(lower::contains);
+        if (!readsSensitive || !networkOut) {
+            return List.of();
+        }
+        int snippetEnd = Math.min(text.text().length(), 80);
+        String snippet = snippetEnd == text.text().length()
+                ? text.text() : text.text().substring(0, snippetEnd) + "...";
+        return List.of(ScannerSupport.finding(
+                NAME, "tool_shell_exfiltration", "Suspected data exfiltration command",
+                "Content contains both sensitive file/env reads and external network transfer, "
+                        + "indicating severe data leakage risk",
+                SecuritySeverity.CRITICAL, CATEGORIES, snippet,
+                text.locationAt(0, snippetEnd),
+                "Suspected data exfiltration command detected", false));
     }
 
     private record Rule(String ruleId, String title, Pattern pattern, SecuritySeverity severity) {

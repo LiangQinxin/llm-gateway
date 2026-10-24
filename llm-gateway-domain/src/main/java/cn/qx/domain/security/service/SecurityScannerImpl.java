@@ -13,6 +13,7 @@ import com.alibaba.fastjson2.JSON;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -22,6 +23,8 @@ import java.util.stream.Collectors;
 
 /**
  * 安全扫描引擎：JSON 值钻取 + 原文兜底 + 去重 + 三段评分 + 策略动作。
+ * 对齐安全审计引擎：findings 上限 MAX_FINDINGS=80 兜底、max_scan_bytes
+ * 单字段性能保护、请求/响应双侧开关、证据打码输出。
  */
 @Slf4j
 @Service
@@ -29,6 +32,7 @@ public class SecurityScannerImpl implements ISecurityScanner {
 
     private static final int MAX_DEPTH = 16;
     private static final int MAX_NODES = 5000;
+    private static final int MAX_FINDINGS = 80;
 
     private final List<ISubScanner> scanners;
     private final ScanSettings defaultSettings;
@@ -60,7 +64,10 @@ public class SecurityScannerImpl implements ISecurityScanner {
         if (body == null || body.isBlank() || settings == null || !settings.isEnabled()) {
             return AuditResult.clean(phase, "clean: scan disabled or empty body");
         }
-        if (phase == ScanPhase.RESPONSE) {
+        if (phase == ScanPhase.REQUEST && !settings.isScanRequest()) {
+            return AuditResult.clean(phase, "clean: request scanning is not enabled");
+        }
+        if (phase == ScanPhase.RESPONSE && !settings.isScanResponse()) {
             return AuditResult.clean(phase, "clean: response scanning is not enabled");
         }
 
@@ -68,11 +75,13 @@ public class SecurityScannerImpl implements ISecurityScanner {
         List<ScanText> texts = new ArrayList<>();
         try {
             Object parsed = JSON.parse(body);
-            traverse(parsed, "$", 0, state, texts);
+            traverse(parsed, "$", 0, state, texts, settings.getMaxScanBytes());
         } catch (Exception ignored) {
             // 非 JSON 原文仍由后续 @raw 扫描兜底。
         }
-        texts.add(new ScanText(body, "@raw", true));
+        if (withinByteLimit(body, settings.getMaxScanBytes())) {
+            texts.add(new ScanText(body, "@raw", true));
+        }
 
         List<ISubScanner> enabledScanners = scanners.stream()
                 .filter(scanner -> scanner.enabled(settings))
@@ -81,8 +90,19 @@ public class SecurityScannerImpl implements ISecurityScanner {
         for (ScanText text : texts) {
             for (ISubScanner scanner : enabledScanners) {
                 findings.addAll(scanner.scan(text));
+                if (findings.size() >= MAX_FINDINGS) {
+                    break;
+                }
+            }
+            if (findings.size() >= MAX_FINDINGS) {
+                break;
             }
         }
+        boolean findingsTruncated = findings.size() >= MAX_FINDINGS;
+        if (findingsTruncated) {
+            findings = new ArrayList<>(findings.subList(0, MAX_FINDINGS));
+        }
+
         List<ScanFinding> deduplicated = deduplicate(findings);
         SecurityRiskScorer.RiskAssessment assessment = riskScorer.score(deduplicated);
         List<ScanFinding> actioned = applyActions(deduplicated, settings);
@@ -90,10 +110,10 @@ public class SecurityScannerImpl implements ISecurityScanner {
                 .anyMatch(finding -> finding.getAction() == FindingAction.REDACT);
         SecurityAction finalAction = securityPolicy.globalAction(
                 assessment.level(), anyRedact, settings.getMode(), settings.isBlockCritical());
-        String summary = summary(actioned, assessment, state);
-        log.info("安全扫描完成: phase={}, score={}, level={}, action={}, findings={}, summary={}",
+        String summary = summary(actioned, assessment, state, findingsTruncated);
+        log.info("安全扫描完成: phase={}, score={}, level={}, action={}, findings={}, truncated={}, summary={}",
                 phase, assessment.score(), assessment.level(), finalAction,
-                actioned.size(), summary);
+                actioned.size(), findingsTruncated, summary);
         return AuditResult.builder()
                 .phase(phase)
                 .findings(List.copyOf(actioned))
@@ -101,6 +121,8 @@ public class SecurityScannerImpl implements ISecurityScanner {
                 .level(assessment.level())
                 .finalAction(finalAction)
                 .blocked(finalAction == SecurityAction.BLOCK)
+                .blockedReason(finalAction == SecurityAction.BLOCK ? summary : null)
+                .sanitized(finalAction == SecurityAction.SANITIZE)
                 .summary(summary)
                 .build();
     }
@@ -109,7 +131,8 @@ public class SecurityScannerImpl implements ISecurityScanner {
                                  String path,
                                  int depth,
                                  TraversalState state,
-                                 List<ScanText> texts) {
+                                 List<ScanText> texts,
+                                 int maxScanBytes) {
         if (state.stopped) {
             return;
         }
@@ -125,22 +148,31 @@ public class SecurityScannerImpl implements ISecurityScanner {
         }
         if (node instanceof String value) {
             state.strings++;
-            texts.add(new ScanText(value, path, false));
+            if (withinByteLimit(value, maxScanBytes)) {
+                texts.add(new ScanText(value, path, false));
+            }
             return;
         }
         if (node instanceof Map<?, ?> map) {
             for (Map.Entry<?, ?> entry : map.entrySet()) {
                 traverse(entry.getValue(), childPath(path, String.valueOf(entry.getKey())),
-                        depth + 1, state, texts);
+                        depth + 1, state, texts, maxScanBytes);
             }
             return;
         }
         if (node instanceof Collection<?> collection) {
             int index = 0;
             for (Object item : collection) {
-                traverse(item, path + "[" + index++ + "]", depth + 1, state, texts);
+                traverse(item, path + "[" + index++ + "]", depth + 1, state, texts, maxScanBytes);
             }
         }
+    }
+
+    private static boolean withinByteLimit(String value, int maxScanBytes) {
+        if (maxScanBytes <= 0) {
+            return true;
+        }
+        return value.getBytes(StandardCharsets.UTF_8).length <= maxScanBytes;
     }
 
     private static String childPath(String parent, String key) {
@@ -175,8 +207,10 @@ public class SecurityScannerImpl implements ISecurityScanner {
 
     private static String summary(List<ScanFinding> findings,
                                   SecurityRiskScorer.RiskAssessment assessment,
-                                  TraversalState state) {
-        String scanStats = "scanned " + state.strings + " string(s), truncated=" + state.truncated;
+                                  TraversalState state,
+                                  boolean findingsTruncated) {
+        String scanStats = "scanned " + state.strings + " string(s), truncated="
+                + (state.truncated || findingsTruncated);
         if (findings.isEmpty()) {
             return "clean: " + scanStats;
         }

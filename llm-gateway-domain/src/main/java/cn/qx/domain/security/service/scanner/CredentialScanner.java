@@ -29,6 +29,8 @@ public class CredentialScanner implements ISubScanner {
     private static final List<Rule> BARE_RULES = List.of(
             rule("credential_apikey_openai", "OpenAI API Key",
                     "\\bsk-(?:proj-)?[a-zA-Z0-9]{20,}\\b", SecuritySeverity.HIGH, false),
+            rule("credential_apikey_anthropic", "Anthropic API Key",
+                    "\\bsk-ant-[a-zA-Z0-9_-]{20,}\\b", SecuritySeverity.HIGH, false),
             rule("credential_apikey_generic", "Generic API Key",
                     "\\bkey-[a-zA-Z0-9]{20,}\\b", SecuritySeverity.HIGH, true),
             rule("credential_apikey_google", "Google API Key",
@@ -43,10 +45,14 @@ public class CredentialScanner implements ISubScanner {
                     SecuritySeverity.CRITICAL, false),
             rule("credential_github_pat", "GitHub Personal Access Token",
                     "\\bghp_[a-zA-Z0-9]{36}\\b", SecuritySeverity.CRITICAL, false),
+            rule("credential_github_oauth", "GitHub OAuth Token",
+                    "\\bgho_[a-zA-Z0-9]{36}\\b", SecuritySeverity.CRITICAL, false),
             rule("credential_github_pat_v2", "GitHub Fine-grained Token",
                     "\\bgithub_pat_[a-zA-Z0-9_]{20,}\\b", SecuritySeverity.CRITICAL, false),
             rule("credential_slack_token", "Slack Token",
                     "\\bxox[baprs]-[a-zA-Z0-9-]{10,}\\b", SecuritySeverity.HIGH, false),
+            rule("credential_bearer", "Bearer Token",
+                    "(?i)\\bbearer\\s+[a-zA-Z0-9._~+/=-]{20,}\\b", SecuritySeverity.HIGH, false),
             rule("credential_private_key", "Private Key Header",
                     "-----BEGIN (?:RSA |EC |OPENSSH |DSA |PGP )?PRIVATE KEY-----",
                     SecuritySeverity.CRITICAL, false)
@@ -60,6 +66,11 @@ public class CredentialScanner implements ISubScanner {
             new AssignmentRule("credential_secret", "Secret Assignment",
                     "(?i)(?<![A-Za-z0-9_])(secret|client_secret|机密)(?![A-Za-z0-9_])[\"']?\\s*[=:：]\\s*[\"']?([A-Za-z0-9_\\-./+=@]{4,})")
     );
+
+    /** 敏感字段名（对齐安全审计引擎 credential.named_secret）。 */
+    private static final List<String> NAMED_FIELDS = List.of(
+            "authorization:", "cookie:", "sessionid=", "auth_token=",
+            "secret_key", "access_key", "database_url");
 
     @Override
     public String scannerName() {
@@ -103,7 +114,21 @@ public class CredentialScanner implements ISubScanner {
                         matcher.start(), matcher.end(), matcher.group(), severity));
             }
         }
+        namedFieldFindings(text).forEach(findings::add);
         return findings;
+    }
+
+    private static List<ScanFinding> namedFieldFindings(ScanText text) {
+        String lower = text.text().toLowerCase(Locale.ROOT);
+        for (String field : NAMED_FIELDS) {
+            int index = lower.indexOf(field);
+            if (index >= 0) {
+                return List.of(finding(
+                        "credential_named_field", "Sensitive credential field",
+                        text, index, index + field.length(), field, SecuritySeverity.HIGH));
+            }
+        }
+        return List.of();
     }
 
     private static boolean strongAssignmentValue(String key, String value) {

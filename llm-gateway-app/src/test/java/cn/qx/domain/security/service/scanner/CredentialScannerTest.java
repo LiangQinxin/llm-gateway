@@ -60,6 +60,30 @@ public class CredentialScannerTest {
     }
 
     /**
+     * Anthropic/GitHub OAuth/Bearer 前缀与敏感字段名规则命中（对齐安全审计引擎前缀启发式）。
+     */
+    @Test
+    public void anthropic_oauth_bearer_and_named_fields_are_detected() {
+        String body = """
+                sk-ant-api03-abcdefghijklmnopqrstuvwxyz
+                gho_abcdefghijklmnopqrstuvwxyz0123456789
+                Bearer abcdefghijklmnopqrstuvwxyz012345
+                authorization: Bearer abcdef
+                sessionid=abc12345 database_url=mysql://db
+                """;
+        AuditResult result = securityScanner.scan(cn.qx.domain.security.model.valobj.ScanRequest.of(
+                body, SecurityTestSupport.credentialOnly(SecurityMode.WARN)));
+        log.info("前缀与字段名扫描结果: {}", JSON.toJSONString(result));
+
+        Set<String> rules = result.getFindings().stream()
+                .map(ScanFinding::getRuleId).collect(Collectors.toSet());
+        assertTrue("sk-ant- 应命中", rules.contains("credential_apikey_anthropic"));
+        assertTrue("gho_ 应命中", rules.contains("credential_github_oauth"));
+        assertTrue("Bearer 应命中", rules.contains("credential_bearer"));
+        assertTrue("敏感字段名应命中", rules.contains("credential_named_field"));
+    }
+
+    /**
      * 键值对值长度 ≥8 且字母数字混合升级 High；示例值不命中。
      */
     @Test

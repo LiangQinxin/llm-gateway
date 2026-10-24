@@ -32,6 +32,7 @@ final class ScannerSupport {
                 .severity(severity)
                 .categories(List.copyOf(categories))
                 .evidence(evidence)
+                .evidenceMasked(EvidenceMasker.mask(evidence))
                 .location(location)
                 .message(message)
                 .redactable(redactable)

@@ -28,7 +28,8 @@ public class NetworkScanner implements ISubScanner {
             "webhook.site", "requestbin", "ngrok.io", "ngrok-free.app", "transfer.sh",
             "0x0.st", "pastebin.com", "ipfs.io", "interact.sh");
     private static final Set<String> PROBE_DOMAINS = Set.of(
-            "ifconfig.me", "icanhazip.com", "ipinfo.io", "checkip.amazonaws.com");
+            "ifconfig.me", "icanhazip.com", "ipinfo.io", "ip-api.com", "ipify.org",
+            "checkip.amazonaws.com");
     private static final Set<String> BENIGN_DOMAINS = Set.of(
             "localhost", "localhost.localdomain");
 

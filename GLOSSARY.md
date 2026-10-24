@@ -87,19 +87,19 @@ _Avoid_: 安全审计服务、auditor
 _Avoid_: 检测器、rule engine
 
 **ScanPhase（扫描阶段）**:
-扫描的方向维度：REQUEST（请求体）与 RESPONSE（响应体）；当前只实现 REQUEST，RESPONSE 仅预留端口。
+扫描的方向维度：REQUEST（请求体）与 RESPONSE（响应体）；请求侧默认扫描，响应侧由 `scanResponse` 开关控制（默认关闭，开启后同样过扫描引擎）。
 _Avoid_: 方向、audit phase
 
 **ScanFinding（安检发现）**:
-一次规则命中：规则 id、扫描器、严重度、类别标签、命中证据、位置（JSONPath 或原文偏移）。
+一次规则命中：规则 id、扫描器、严重度、类别标签、位置（JSONPath 或原文偏移）。命中证据分两层：`evidence` 完整原文（仅内部去重/定位，不参与 JSON 序列化）与 `evidenceMasked` 打码证据（对外展示，前 8+****+后 4、≤16 原样），审计日志与接口输出只出现打码版。
 _Avoid_: 命中项、issue
 
 **风险评分（三段制）**:
-一次扫描的风险量化：基础分取最高 severity 值（Info=5/Low=15/Medium=35/High=65/Critical=90，不累加）→ 类别组合加分 → 总分反推等级（0=Clean、1–34=Low、35–64=Medium、65–89=High、≥90=Critical，只升不降）。危险性不随命中数量线性叠加。
+一次扫描的风险量化：基础分取最高 severity 值（Info=5/Low=15/Medium=35/High=65/Critical=90，不累加）→ 类别组合加分 → 总分 `min(100, 基础分+组合加分)` 封顶后反推等级（0=Clean、1–14=Info、15–34=Low、35–64=Medium、65–89=High、≥90=Critical，只升不降）。危险性不随命中数量线性叠加，超出 100 压回 100。
 _Avoid_: 累加计分、风险分（表述需含三段制）
 
 **策略档位（mode）**:
-网关全局安全严格度档位（audit/warn/redact/block 四选一）；档内等级→动作映射查策略矩阵（代码内置常量），另配 blockCritical 开关（打开后 Critical 在任意档位强制 Block）。
+网关全局安全严格度档位（off/audit/warn/redact/confirm/block 六选一）；OFF/AUDIT/CONFIRM 只审计放行、WARN 中危以上警告、REDACT 高危以上脱敏、BLOCK 高危以上阻断；档内等级→动作映射查策略矩阵（代码内置常量），另配 blockCritical 开关（打开后 Critical 在任意档位强制 Block）。
 _Avoid_: 安全模式（避免与 StreamMode 混淆）
 
 **SecurityAction（安全动作）**:
@@ -107,10 +107,10 @@ _Avoid_: 安全模式（避免与 StreamMode 混淆）
 _Avoid_: Warn、Redact（仅策略中间态，不落库）
 
 **CredentialScanner（凭证扫描器）**:
-检测密钥/账号密码泄露的子扫描器（云厂商密钥、私钥块、账号密码键值、带口令连接串等）。固定启用。
+检测密钥/账号密码泄露的子扫描器（云厂商密钥、私钥块、账号密码键值、带口令连接串等）。默认启用（可配置关闭）。
 
 **PathScanner（路径扫描器）**:
-检测路径攻击与敏感文件引用的子扫描器（路径穿越、~/.ssh、/etc/passwd 等）。固定启用。
+检测路径攻击与敏感文件引用的子扫描器（路径穿越、~/.ssh、/etc/passwd 等）。默认启用（可配置关闭）。
 
 **UnicodeScanner（Unicode 扫描器）**:
 检测 Unicode 伪装字符的子扫描器（零宽字符、同形字、RTL 覆盖等）。默认关闭，配置启用。

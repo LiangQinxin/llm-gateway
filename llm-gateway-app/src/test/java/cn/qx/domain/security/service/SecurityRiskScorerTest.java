@@ -35,19 +35,36 @@ public class SecurityRiskScorerTest {
                 finding(SecuritySeverity.LOW, SecurityCategory.SENSITIVE_FILE));
         SecurityRiskScorer.RiskAssessment assessment = riskScorer.score(findings);
         log.info("评分组合: {}", JSON.toJSONString(assessment));
-        assertEquals(90 + 25 + 25, assessment.score());
+        assertEquals("90(基础) + 25 + 25 = 140，封顶 100",
+                100, assessment.score());
+        assertEquals(RiskLevel.CRITICAL, assessment.level());
+    }
+
+    @Test
+    public void score_caps_at_100_when_combo_overflows() {
+        List<ScanFinding> findings = List.of(
+                finding(SecuritySeverity.CRITICAL, SecurityCategory.CREDENTIAL),
+                finding(SecuritySeverity.CRITICAL, SecurityCategory.EXFIL),
+                finding(SecuritySeverity.CRITICAL, SecurityCategory.SENSITIVE_FILE));
+        SecurityRiskScorer.RiskAssessment assessment = riskScorer.score(findings);
+        log.info("封顶评分: {}", JSON.toJSONString(assessment));
+        assertEquals(100, assessment.score());
         assertEquals(RiskLevel.CRITICAL, assessment.level());
     }
 
     @Test
     public void risk_level_bands_are_exact() {
         assertEquals(RiskLevel.CLEAN, RiskLevel.fromScore(0));
+        assertEquals(RiskLevel.INFO, RiskLevel.fromScore(5));
+        assertEquals(RiskLevel.INFO, RiskLevel.fromScore(14));
+        assertEquals(RiskLevel.LOW, RiskLevel.fromScore(15));
         assertEquals(RiskLevel.LOW, RiskLevel.fromScore(34));
         assertEquals(RiskLevel.MEDIUM, RiskLevel.fromScore(35));
         assertEquals(RiskLevel.MEDIUM, RiskLevel.fromScore(64));
         assertEquals(RiskLevel.HIGH, RiskLevel.fromScore(65));
         assertEquals(RiskLevel.HIGH, RiskLevel.fromScore(89));
         assertEquals(RiskLevel.CRITICAL, RiskLevel.fromScore(90));
+        assertEquals(RiskLevel.CRITICAL, RiskLevel.fromScore(100));
     }
 
     private static ScanFinding finding(SecuritySeverity severity, SecurityCategory category) {
