@@ -2,6 +2,7 @@ package cn.qx.types.common;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.time.Duration;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.UUID;
@@ -43,5 +44,19 @@ public final class TimeUtils {
     /** 标准 36 字符 UUID。 */
     public static String uuid() {
         return UUID.randomUUID().toString();
+    }
+
+    /** 计算从带偏移 ISO-8601 时间到当前的毫秒数；非法或未来时间回退 0。 */
+    public static long elapsedMillis(String startedAt) {
+        if (startedAt == null || startedAt.isBlank()) {
+            return 0L;
+        }
+        try {
+            long elapsed = Duration.between(
+                    OffsetDateTime.parse(startedAt), OffsetDateTime.now(DEFAULT_OFFSET)).toMillis();
+            return Math.max(0L, elapsed);
+        } catch (DateTimeParseException e) {
+            return 0L;
+        }
     }
 }

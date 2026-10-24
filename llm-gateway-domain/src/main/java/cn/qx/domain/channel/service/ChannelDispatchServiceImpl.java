@@ -17,6 +17,7 @@ import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONObject;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -42,12 +43,16 @@ public class ChannelDispatchServiceImpl implements IChannelDispatchService, IDis
     private final IChannelSelector channelSelector;
     /** 协议适配器注册表：key=渠道类型，value=对应 LLM 适配器 */
     private final Map<String, ILlmAdaptor> adaptors = new ConcurrentHashMap<>();
+    /** 可选总尝试预算（null=不设上限，最大尝试次数=retryCount+1） */
+    private final Integer retryCount;
 
     public ChannelDispatchServiceImpl(IChannelRepository channelRepository,
                                       IChannelSelector channelSelector,
-                                      List<ILlmAdaptor> adaptors) {
+                                      List<ILlmAdaptor> adaptors,
+                                      @Value("${dispatch.retry-count:#{null}}") Integer retryCount) {
         this.channelRepository = channelRepository;
         this.channelSelector = channelSelector;
+        this.retryCount = retryCount;
         for (ILlmAdaptor adaptor : adaptors) {
             this.adaptors.put(adaptor.channelType(), adaptor);
         }
@@ -59,6 +64,9 @@ public class ChannelDispatchServiceImpl implements IChannelDispatchService, IDis
             return DispatchOutcome.notFound(request == null ? "" : request.getModel());
         }
         List<Channel> channels = channelRepository.listEnabledOrdered();
+        if (channels.isEmpty()) {
+            return DispatchOutcome.noChannel(request.getModel());
+        }
         Random random = ThreadLocalRandom.current();
         List<Channel> queue = channelSelector.buildFailoverQueue(channels, request.getModel(), random);
         if (queue.isEmpty()) {
@@ -72,8 +80,16 @@ public class ChannelDispatchServiceImpl implements IChannelDispatchService, IDis
         ForwardResult lastUnaryFailure = null;
         StreamResult lastStreamFailure = null;
         boolean lastFailureNetwork = false;
+        Channel lastAttemptedChannel = null;
+        String lastAttemptedModel = null;
+        int maxAttempts = retryCount == null
+                ? queue.size()
+                : Math.min(Math.max(1, retryCount + 1), queue.size());
 
         for (int i = 0; i < queue.size(); i++) {
+            if (attempts.size() >= maxAttempts) {
+                break;
+            }
             Channel channel = queue.get(i);
             if (!attemptedChannelIds.add(channel.getId())) {
                 continue;
@@ -93,6 +109,8 @@ public class ChannelDispatchServiceImpl implements IChannelDispatchService, IDis
             String upstreamModel = new ModelMapping(channel.activeModelMapping())
                     .resolve(request.getModel(), random);
             body.put("model", upstreamModel);
+            lastAttemptedChannel = channel;
+            lastAttemptedModel = upstreamModel;
             ChannelConfig config = channel.toChannelConfig();
             // 路由已完成一次性映射，适配器只透传最终模型，避免链式映射二次改写。
             config.setModelMapping(new JSONObject());
@@ -105,15 +123,23 @@ public class ChannelDispatchServiceImpl implements IChannelDispatchService, IDis
                         log.info("路由命中: requested={}, upstream={}, channel={}, stream=true, elapsed={}ms",
                                 request.getModel(), upstreamModel, channel.getId(),
                                 System.currentTimeMillis() - start);
-                        return DispatchOutcome.streaming(result);
+                        return DispatchOutcome.builder()
+                                .routed(true)
+                                .streaming(result)
+                                .channelId(channel.getId())
+                                .channelName(channel.getName())
+                                .upstreamModel(upstreamModel)
+                                .attemptCount(attempts.size() + 1)
+                                .build();
                     }
                     lastUnaryFailure = null;
                     lastStreamFailure = result;
                     lastFailureNetwork = false;
                     recordFailure(channel, upstreamModel, "HTTP " + result.getStatusCode(),
                             start, attempts);
-                    if (!hasRemainingCandidate(queue, i)) {
-                        return unaryStreamingExhausted(result, attempts);
+                    if (attempts.size() >= maxAttempts || !hasRemainingCandidate(queue, i)) {
+                        return unaryStreamingExhausted(
+                                result, attempts, lastAttemptedChannel, lastAttemptedModel);
                     }
                     closeQuietly(result);
                 } else {
@@ -122,15 +148,23 @@ public class ChannelDispatchServiceImpl implements IChannelDispatchService, IDis
                         log.info("路由命中: requested={}, upstream={}, channel={}, stream=false, status={}, elapsed={}ms",
                                 request.getModel(), upstreamModel, channel.getId(),
                                 result.getStatusCode(), System.currentTimeMillis() - start);
-                        return DispatchOutcome.unary(result);
+                        return DispatchOutcome.builder()
+                                .routed(true)
+                                .unary(result)
+                                .channelId(channel.getId())
+                                .channelName(channel.getName())
+                                .upstreamModel(upstreamModel)
+                                .attemptCount(attempts.size() + 1)
+                                .build();
                     }
                     lastUnaryFailure = result;
                     lastStreamFailure = null;
                     lastFailureNetwork = false;
                     recordFailure(channel, upstreamModel, "HTTP " + result.getStatusCode(),
                             start, attempts);
-                    if (!hasRemainingCandidate(queue, i)) {
-                        return unaryExhausted(result, attempts);
+                    if (attempts.size() >= maxAttempts || !hasRemainingCandidate(queue, i)) {
+                        return unaryExhausted(
+                                result, attempts, lastAttemptedChannel, lastAttemptedModel);
                     }
                 }
             } catch (UnsupportedProtocolFieldException e) {
@@ -143,19 +177,22 @@ public class ChannelDispatchServiceImpl implements IChannelDispatchService, IDis
                 lastStreamFailure = null;
                 lastFailureNetwork = true;
                 recordFailure(channel, upstreamModel, e.getMessage(), start, attempts);
-                if (!hasRemainingCandidate(queue, i)) {
-                    return upstreamUnavailable(attempts);
+                if (attempts.size() >= maxAttempts || !hasRemainingCandidate(queue, i)) {
+                    return upstreamUnavailable(
+                            attempts, lastAttemptedChannel, lastAttemptedModel);
                 }
             }
         }
         if (lastFailureNetwork) {
-            return upstreamUnavailable(attempts);
+            return upstreamUnavailable(attempts, lastAttemptedChannel, lastAttemptedModel);
         }
         if (lastStreamFailure != null) {
-            return unaryStreamingExhausted(lastStreamFailure, attempts);
+            return unaryStreamingExhausted(
+                    lastStreamFailure, attempts, lastAttemptedChannel, lastAttemptedModel);
         }
         if (lastUnaryFailure != null) {
-            return unaryExhausted(lastUnaryFailure, attempts);
+            return unaryExhausted(
+                    lastUnaryFailure, attempts, lastAttemptedChannel, lastAttemptedModel);
         }
         throw new IllegalStateException("failover 队列无可用转发适配器: model=" + request.getModel());
     }
@@ -199,15 +236,25 @@ public class ChannelDispatchServiceImpl implements IChannelDispatchService, IDis
                 || statusCode == 401 || statusCode == 403;
     }
 
-    private static DispatchOutcome unaryExhausted(ForwardResult result, List<String> attempts) {
+    private static DispatchOutcome unaryExhausted(ForwardResult result,
+                                                  List<String> attempts,
+                                                  Channel channel,
+                                                  String upstreamModel) {
         return DispatchOutcome.builder()
                 .routed(true)
                 .unary(result)
                 .errorMessage(summary(attempts))
+                .channelId(channel == null ? null : channel.getId())
+                .channelName(channel == null ? null : channel.getName())
+                .upstreamModel(upstreamModel)
+                .attemptCount(attempts.size())
                 .build();
     }
 
-    private static DispatchOutcome unaryStreamingExhausted(StreamResult result, List<String> attempts) {
+    private static DispatchOutcome unaryStreamingExhausted(StreamResult result,
+                                                           List<String> attempts,
+                                                           Channel channel,
+                                                           String upstreamModel) {
         String raw = "";
         if (result.getBody() != null) {
             try {
@@ -232,10 +279,12 @@ public class ChannelDispatchServiceImpl implements IChannelDispatchService, IDis
                 .statusCode(result.getStatusCode())
                 .raw(raw)
                 .body(body)
-                .build(), attempts);
+                .build(), attempts, channel, upstreamModel);
     }
 
-    private static DispatchOutcome upstreamUnavailable(List<String> attempts) {
+    private static DispatchOutcome upstreamUnavailable(List<String> attempts,
+                                                       Channel channel,
+                                                       String upstreamModel) {
         JSONObject detail = new JSONObject();
         detail.put("message", "所有上游渠道均不可用");
         detail.put("type", "upstream_error");
@@ -251,6 +300,10 @@ public class ChannelDispatchServiceImpl implements IChannelDispatchService, IDis
                 .routed(true)
                 .unary(result)
                 .errorMessage(summary(attempts))
+                .channelId(channel == null ? null : channel.getId())
+                .channelName(channel == null ? null : channel.getName())
+                .upstreamModel(upstreamModel)
+                .attemptCount(attempts.size())
                 .build();
     }
 

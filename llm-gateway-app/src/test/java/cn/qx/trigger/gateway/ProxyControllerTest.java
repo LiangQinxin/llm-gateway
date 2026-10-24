@@ -4,8 +4,11 @@ import cn.qx.cases.channel.ChannelCase;
 import cn.qx.cases.identity.ApiKeyCase;
 import cn.qx.domain.channel.model.entity.Channel;
 import cn.qx.domain.identity.model.entity.ApiKey;
+import com.alibaba.fastjson2.JSON;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
+import okhttp3.mockwebserver.MockResponse;
+import okhttp3.mockwebserver.MockWebServer;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -36,12 +39,8 @@ import static org.junit.Assert.assertTrue;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 public class ProxyControllerTest {
 
-    /** 上游基础 URL（含 /v1） */
-    private static final String BASE_URL = "http://127.0.0.1:8777/v1";
-    /** 上游 API 密钥 */
-    private static final String API_KEY = "sk-waliapi-04dc74ce989d458e848a2c1616bf5611";
     /** 上游模型名 */
-    private static final String MODEL = "deepseek-flash";
+    private static final String MODEL = "proxy-controller-" + UUID.randomUUID();
 
     /** 随机注入的 HTTP 服务端口 */
     @LocalServerPort
@@ -58,6 +57,9 @@ public class ProxyControllerTest {
     /** 当前测试使用的新密钥 */
     private ApiKey apiKey;
 
+    /** 每个用例独立的假上游 */
+    private MockWebServer upstream;
+
     /** HTTP 测试客户端（连接超时 10 秒） */
     private final HttpClient client = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(10))
@@ -65,16 +67,25 @@ public class ProxyControllerTest {
 
     /** 每个测试用例前创建专属调用密钥 */
     @Before
-    public void createCallerKey() {
+    public void createCallerKey() throws Exception {
         apiKey = apiKeyCase.create(ApiKey.builder()
                 .name("测试-proxy-controller-key-" + UUID.randomUUID())
                 .quotaLimit(0L)
                 .build());
+        upstream = new MockWebServer();
+        upstream.start();
     }
 
     /** 每个测试用例后清理调用密钥 */
     @After
     public void deleteCallerKey() {
+        if (upstream != null) {
+            try {
+                upstream.shutdown();
+            } catch (Exception e) {
+                log.warn("关闭 mock 上游失败: {}", e.getMessage());
+            }
+        }
         if (apiKey != null) {
             apiKeyCase.delete(apiKey.getId());
         }
@@ -106,6 +117,15 @@ public class ProxyControllerTest {
         assertEquals(404, notFound.statusCode());
         assertTrue(notFound.body().contains("model_not_found"));
 
+        upstream.enqueue(new MockResponse()
+                .setResponseCode(200)
+                .setHeader("Content-Type", "application/json")
+                .setBody("""
+                        {"id":"chatcmpl-controller","choices":[{"index":0,
+                         "message":{"role":"assistant","content":"ok"},
+                         "finish_reason":"stop"}],
+                         "usage":{"prompt_tokens":1,"completion_tokens":1,"total_tokens":2}}
+                        """));
         Channel channel = createChannel("测试-proxy-controller-");
         try {
             HttpResponse<String> unary = sendString(
@@ -126,6 +146,15 @@ public class ProxyControllerTest {
      */
     @Test
     public void accept_fallback_really_requests_and_streams_sse() throws Exception {
+        upstream.enqueue(new MockResponse()
+                .setResponseCode(200)
+                .setHeader("Content-Type", "text/event-stream")
+                .setBody("""
+                        data: {"id":"chunk-1","choices":[{"index":0,"delta":{"content":"ok"}}]}
+
+                        data: [DONE]
+
+                        """));
         Channel channel = createChannel("测试-proxy-stream-");
         try {
             HttpRequest request = request(
@@ -208,9 +237,9 @@ public class ProxyControllerTest {
         return channelCase.create(Channel.builder()
                 .name(namePrefix + UUID.randomUUID())
                 .type("deepseek")
-                .baseUrl(BASE_URL)
-                .apiKey(API_KEY)
-                .models("[\"deepseek-flash\"]")
+                .baseUrl(upstream.url("/v1").toString())
+                .apiKey("upstream-key")
+                .models(JSON.toJSONString(new String[]{MODEL}))
                 .priority(10000)
                 .weight(100)
                 .config("{}")

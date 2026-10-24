@@ -53,6 +53,9 @@ public class ApiKey {
 
     /** 模型是否在白名单内；空白名单全放行。 */
     public boolean allowsModel(String model) {
+        if (model == null || model.isBlank()) {
+            return true;
+        }
         List<String> allowed = activeAllowedModels();
         return allowed.isEmpty() || allowed.contains(model);
     }

@@ -1,7 +1,9 @@
 package cn.qx.trigger.gateway;
 
+import cn.qx.cases.proxy.IProxyCase;
 import cn.qx.cases.proxy.InboundProtocol;
 import com.alibaba.fastjson2.JSONObject;
+import jakarta.annotation.Resource;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -25,6 +27,10 @@ public class ApiKeyFilter extends OncePerRequestFilter {
     /** Bearer 前缀 */
     private static final String BEARER_PREFIX = "Bearer ";
 
+    /** 数据面代理用例：快速失败请求也经它进入唯一留痕入口 */
+    @Resource
+    private IProxyCase proxyCase;
+
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
@@ -37,18 +43,35 @@ public class ApiKeyFilter extends OncePerRequestFilter {
 
         String apiKey = extractApiKey(request, path);
         if (apiKey == null || apiKey.isBlank()) {
+            recordRejection(request, path, 401, "invalid_api_key",
+                    "缺少调用方 API Key");
             writeUnauthorized(response, path);
             return;
         }
         if (InboundProtocol.fromPath(path) == InboundProtocol.MS) {
             String version = request.getHeader("anthropic-version");
             if (version == null || version.isBlank()) {
+                recordRejection(request, path, 400, "invalid_request_error",
+                        "缺少 anthropic-version");
                 writeBadRequest(response, "缺少 anthropic-version");
                 return;
             }
         }
         request.setAttribute(REQUEST_ATTRIBUTE, apiKey);
         filterChain.doFilter(request, response);
+    }
+
+    private void recordRejection(HttpServletRequest request,
+                                 String path,
+                                 int statusCode,
+                                 String code,
+                                 String message) {
+        try {
+            proxyCase.recordRejected(
+                    path, statusCode, code, message, request.getRemoteAddr());
+        } catch (Exception ignored) {
+            // 留痕失败绝不影响鉴权快速失败。
+        }
     }
 
     private static boolean isDataPlanePath(String path) {

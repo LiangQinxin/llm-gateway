@@ -69,11 +69,12 @@ public class ProxyController {
         taskExecutor.execute(() -> {
             try {
                 ProxyRequest proxyRequest = proxyCase.prepare(
-                        body, request.getHeader("Accept"), request.getRequestURI());
+                        body, request.getHeader("Accept"), request.getRequestURI(),
+                        (String) request.getAttribute(ApiKeyFilter.REQUEST_ATTRIBUTE));
                 log.info("数据面请求: path={}, model={}, stream={}",
                         request.getRequestURI(), proxyRequest.getModel(), proxyRequest.isStream());
-                String apiKey = (String) request.getAttribute(ApiKeyFilter.REQUEST_ATTRIBUTE);
-                ProxyResult result = proxyCase.forward(proxyRequest, apiKey);
+                ProxyResult result = proxyCase.forward(
+                        proxyRequest, (String) request.getAttribute(ApiKeyFilter.REQUEST_ATTRIBUTE));
                 proxyCase.write(result, request.getRequestURI(), emitter, response);
             } catch (ProxyException e) {
                 proxyCase.writeError(e, request.getRequestURI(), emitter, response);

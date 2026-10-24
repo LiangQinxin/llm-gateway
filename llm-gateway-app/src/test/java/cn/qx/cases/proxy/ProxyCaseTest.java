@@ -12,6 +12,8 @@ import com.alibaba.fastjson2.JSONArray;
 import com.alibaba.fastjson2.JSONObject;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
+import okhttp3.mockwebserver.MockResponse;
+import okhttp3.mockwebserver.MockWebServer;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -34,12 +36,8 @@ import static org.junit.Assert.assertTrue;
 @SpringBootTest
 public class ProxyCaseTest {
 
-    /** 上游基础 URL（含 /v1） */
-    private static final String BASE_URL = "http://127.0.0.1:8777/v1";
-    /** 上游 API 密钥 */
-    private static final String API_KEY = "sk-waliapi-04dc74ce989d458e848a2c1616bf5611";
     /** 上游模型名 */
-    private static final String MODEL = "deepseek-flash";
+    private static final String MODEL = "proxy-case-" + UUID.randomUUID();
 
     /** 代理转发用例 */
     @Resource
@@ -108,44 +106,69 @@ public class ProxyCaseTest {
                 .name("测试-proxy-key-" + UUID.randomUUID())
                 .quotaLimit(0L)
                 .build());
-        Channel channel = channelCase.create(Channel.builder()
-                .name("测试-proxy-" + UUID.randomUUID())
-                .type("deepseek")
-                .baseUrl(BASE_URL)
-                .apiKey(API_KEY)
-                .models("[\"deepseek-flash\"]")
-                .priority(10000)
-                .weight(100)
-                .config("{}")
-                .modelMapping("{}")
-                .build());
-        try {
-            ProxyResult unary = proxyCase.forward(proxyCase.prepare(
-                    requestJson(MODEL, false), "application/json"), apiKey.getKey());
-            log.info("非流式 ProxyResult: status={}, body={}", unary.getStatusCode(), unary.getRaw());
-            assertEquals("非流式应 200", 200, unary.getStatusCode());
-            assertTrue("非流式应 application/json", unary.getContentType().startsWith("application/json"));
-            assertNotNull("应保留原始响应文本", unary.getRaw());
-            assertTrue("原始响应应含 choices", unary.getRaw().contains("\"choices\""));
+        try (MockWebServer upstream = new MockWebServer()) {
+            upstream.enqueue(new MockResponse()
+                    .setResponseCode(200)
+                    .setHeader("Content-Type", "application/json")
+                    .setBody("""
+                            {"id":"chatcmpl-unary","choices":[{"index":0,
+                             "message":{"role":"assistant","content":"ok"},
+                             "finish_reason":"stop"}],
+                             "usage":{"prompt_tokens":1,"completion_tokens":1,"total_tokens":2}}
+                            """));
+            upstream.enqueue(new MockResponse()
+                    .setResponseCode(200)
+                    .setHeader("Content-Type", "text/event-stream")
+                    .setBody("""
+                            data: {"id":"chunk-1","choices":[{"index":0,"delta":{"content":"ok"}}]}
 
-            ProxyResult notFound = proxyCase.forward(proxyCase.prepare(
-                    requestJson("missing-" + UUID.randomUUID(), false), "application/json"), apiKey.getKey());
-            log.info("未命中 ProxyResult: status={}, body={}", notFound.getStatusCode(), notFound.getRaw());
-            assertEquals("未命中应 404", 404, notFound.getStatusCode());
-            assertTrue("未命中应 OpenAI 风格错误", notFound.getRaw().contains("model_not_found"));
+                            data: [DONE]
 
-            ProxyResult streaming = proxyCase.forward(proxyCase.prepare(
-                    requestJson(MODEL, true), "*/*"), apiKey.getKey());
-            log.info("流式 ProxyResult: status={}, cancel={}",
-                    streaming.getStatusCode(), streaming.getCancel());
-            assertEquals("流式应 200", 200, streaming.getStatusCode());
-            assertTrue("流式应 text/event-stream", streaming.getContentType().startsWith("text/event-stream"));
-            assertNotNull("流式应带 cancel", streaming.getCancel());
-            String sse = new String(streaming.getStream().readAllBytes(), StandardCharsets.UTF_8);
-            assertTrue("应含 data: 帧", sse.contains("data:"));
-            assertTrue("应含 [DONE]", sse.contains("[DONE]"));
+                            """));
+            upstream.start();
+            Channel channel = channelCase.create(Channel.builder()
+                    .name("测试-proxy-" + UUID.randomUUID())
+                    .type("deepseek")
+                    .baseUrl(upstream.url("/v1").toString())
+                    .apiKey("upstream-key")
+                    .models(JSON.toJSONString(new String[]{MODEL}))
+                    .priority(10000)
+                    .weight(100)
+                    .config("{}")
+                    .modelMapping("{}")
+                    .build());
+            try {
+                ProxyResult unary = proxyCase.forward(proxyCase.prepare(
+                        requestJson(MODEL, false), "application/json"), apiKey.getKey());
+                log.info("非流式 ProxyResult: status={}, body={}", unary.getStatusCode(), unary.getRaw());
+                assertEquals("非流式应 200", 200, unary.getStatusCode());
+                assertTrue("非流式应 application/json", unary.getContentType().startsWith("application/json"));
+                assertNotNull("应保留原始响应文本", unary.getRaw());
+                assertTrue("原始响应应含 choices", unary.getRaw().contains("\"choices\""));
+
+                ProxyResult notFound = proxyCase.forward(proxyCase.prepare(
+                        requestJson("missing-" + UUID.randomUUID(), false), "application/json"),
+                        apiKey.getKey());
+                log.info("未命中 ProxyResult: status={}, body={}",
+                        notFound.getStatusCode(), notFound.getRaw());
+                assertEquals("未命中应 404", 404, notFound.getStatusCode());
+                assertTrue("未命中应 OpenAI 风格错误", notFound.getRaw().contains("model_not_found"));
+
+                ProxyResult streaming = proxyCase.forward(proxyCase.prepare(
+                        requestJson(MODEL, true), "*/*"), apiKey.getKey());
+                log.info("流式 ProxyResult: status={}, cancel={}",
+                        streaming.getStatusCode(), streaming.getCancel());
+                assertEquals("流式应 200", 200, streaming.getStatusCode());
+                assertTrue("流式应 text/event-stream",
+                        streaming.getContentType().startsWith("text/event-stream"));
+                assertNotNull("流式应带 cancel", streaming.getCancel());
+                String sse = new String(streaming.getStream().readAllBytes(), StandardCharsets.UTF_8);
+                assertTrue("应含 data: 帧", sse.contains("data:"));
+                assertTrue("应含 [DONE]", sse.contains("[DONE]"));
+            } finally {
+                channelCase.delete(channel.getId());
+            }
         } finally {
-            channelCase.delete(channel.getId());
             apiKeyCase.delete(apiKey.getId());
         }
     }
@@ -154,32 +177,41 @@ public class ProxyCaseTest {
      * 上游非 2xx 错误体透传：状态码保留、错误体按 JSON 原样回传。
      */
     @Test
-    public void upstream_non_2xx_error_body_is_passed_through() {
+    public void upstream_non_2xx_error_body_is_passed_through() throws Exception {
         ApiKey apiKey = apiKeyCase.create(ApiKey.builder()
                 .name("测试-proxy-error-key-" + UUID.randomUUID())
                 .quotaLimit(0L)
                 .build());
-        Channel channel = channelCase.create(Channel.builder()
-                .name("测试-proxy-error-" + UUID.randomUUID())
-                .type("deepseek")
-                .baseUrl(BASE_URL)
-                .apiKey(API_KEY)
-                .models("[\"unsupported-" + UUID.randomUUID() + "\"]")
-                .priority(10000)
-                .weight(100)
-                .config("{}")
-                .modelMapping("{}")
-                .build());
-        try {
-            String model = channel.activeModels().get(0);
-            ProxyResult result = proxyCase.forward(proxyCase.prepare(
-                    requestJson(model, false), "application/json"), apiKey.getKey());
-            log.info("上游错误透传: status={}, body={}", result.getStatusCode(), result.getRaw());
-            assertTrue("上游非 2xx 应保留状态码", result.getStatusCode() >= 400);
-            assertTrue("错误体应按 JSON 透传", result.getContentType().startsWith("application/json"));
-            assertTrue("错误体应保留 upstream error", result.getRaw().contains("\"error\""));
+        try (MockWebServer upstream = new MockWebServer()) {
+            upstream.enqueue(new MockResponse()
+                    .setResponseCode(500)
+                    .setHeader("Content-Type", "application/json")
+                    .setBody("{\"error\":{\"message\":\"upstream failed\"}}"));
+            upstream.start();
+            Channel channel = channelCase.create(Channel.builder()
+                    .name("测试-proxy-error-" + UUID.randomUUID())
+                    .type("deepseek")
+                    .baseUrl(upstream.url("/v1").toString())
+                    .apiKey("upstream-key")
+                    .models("[\"unsupported-" + UUID.randomUUID() + "\"]")
+                    .priority(10000)
+                    .weight(100)
+                    .config("{}")
+                    .modelMapping("{}")
+                    .build());
+            try {
+                String model = channel.activeModels().get(0);
+                ProxyResult result = proxyCase.forward(proxyCase.prepare(
+                        requestJson(model, false), "application/json"), apiKey.getKey());
+                log.info("上游错误透传: status={}, body={}", result.getStatusCode(), result.getRaw());
+                assertEquals("最后一次 HTTP 状态应透传", 500, result.getStatusCode());
+                assertTrue("错误体应按 JSON 透传",
+                        result.getContentType().startsWith("application/json"));
+                assertTrue("错误体应保留 upstream error", result.getRaw().contains("\"error\""));
+            } finally {
+                channelCase.delete(channel.getId());
+            }
         } finally {
-            channelCase.delete(channel.getId());
             apiKeyCase.delete(apiKey.getId());
         }
     }

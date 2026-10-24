@@ -20,6 +20,9 @@ public interface IProxyCase {
     /** 解析请求，并按入站路径记录协议入口。 */
     ProxyRequest prepare(String rawBody, String acceptHeader, String inboundPath);
 
+    /** 主入口：先鉴权/配额预检，再进入解析与安全检查管道。 */
+    ProxyRequest prepare(String rawBody, String acceptHeader, String inboundPath, String apiKey);
+
     /** 认证调用方后，一次调用渠道门面并转换为字节中立结果。 */
     ProxyResult forward(ProxyRequest request, String apiKey);
 
@@ -34,4 +37,8 @@ public interface IProxyCase {
     /** 尚未发送任何字节时的系统失败，回退为 OpenAI 风格 JSON。 */
     void writeUpstreamFailure(ResponseBodyEmitter emitter, String inboundPath,
                               HttpServletResponse response, Throwable error);
+
+    /** 记录 pipeline 之前的拒绝请求（filter 快速失败），仍由 ProxyCase 作为唯一留痕入口。 */
+    void recordRejected(String inboundPath, int statusCode, String code,
+                        String message, String clientIp);
 }

@@ -1,5 +1,6 @@
 package cn.qx.domain.channel.model.valobj;
 
+import cn.qx.domain.security.model.valobj.AuditResult;
 import com.alibaba.fastjson2.JSONObject;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -37,8 +38,27 @@ public class ProxyRequest {
     /** 入站原始字节（用于原生端点零转换透传） */
     private String rawBody;
 
+    /** 请求入口时间（ISO-8601 带偏移，耗时统计用） */
+    private String startedAt;
+
+    /** 链路追踪 ID（日志与安全发现共用） */
+    private String traceId;
+
+    /** 脱敏后的落库请求体 */
+    private String auditBody;
+
+    /** 请求侧安全扫描结果 */
+    private AuditResult auditResult;
+
+    /** 调用方密钥 ID */
+    private String apiKeyId;
+
+    /** 调用方密钥名称快照 */
+    private String apiKeyName;
+
     public ProxyRequest(String model, JSONObject body, boolean stream) {
-        this(model, body, stream, DEFAULT_INBOUND_PATH, ProtocolFamily.CC, null);
+        this(model, body, stream, DEFAULT_INBOUND_PATH, ProtocolFamily.CC, null,
+                null, null, null, null, null, null);
     }
 
 }

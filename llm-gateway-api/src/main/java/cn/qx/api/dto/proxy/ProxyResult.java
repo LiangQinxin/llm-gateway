@@ -28,4 +28,6 @@ public class ProxyResult {
     private InputStream stream;
     /** 上游调用取消句柄（用于取消流式请求） */
     private Runnable cancel;
+    /** 流式审计会话标识（case 内部上下文，不透出领域执行对象） */
+    private String auditSessionId;
 }

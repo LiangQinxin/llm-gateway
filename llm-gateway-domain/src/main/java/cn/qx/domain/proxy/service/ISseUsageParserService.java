@@ -1,5 +1,8 @@
 package cn.qx.domain.proxy.service;
 
+import cn.qx.domain.channel.model.valobj.TokenUsage;
+
+import java.util.Optional;
 import java.util.OptionalLong;
 
 /**
@@ -15,4 +18,7 @@ public interface ISseUsageParserService {
 
     /** 已解析到的总 Token 数。 */
     OptionalLong usageTokens();
+
+    /** 已解析到的完整 usage。 */
+    Optional<TokenUsage> usage();
 }

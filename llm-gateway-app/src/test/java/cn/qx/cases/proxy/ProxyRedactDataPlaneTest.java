@@ -104,7 +104,7 @@ public class ProxyRedactDataPlaneTest {
                 assertEquals(1, logs.size());
                 assertEquals(Integer.valueOf(1), logs.get(0).getSanitized());
                 assertEquals("Sanitize", logs.get(0).getSecurityAction());
-                assertTrue(logs.get(0).getRequestBody().contains(secret));
+                assertFalse("日志请求体必须是脱敏副本", logs.get(0).getRequestBody().contains(secret));
                 assertTrue(securityFindingRepository.countByLogId(logs.get(0).getId()) > 0);
             } finally {
                 channelCase.delete(channel.getId());

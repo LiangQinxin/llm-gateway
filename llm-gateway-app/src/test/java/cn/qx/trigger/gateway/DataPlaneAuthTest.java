@@ -1,8 +1,11 @@
 package cn.qx.trigger.gateway;
 
+import cn.qx.api.IRequestLogCase;
 import cn.qx.cases.channel.ChannelCase;
 import cn.qx.cases.identity.ApiKeyCase;
 import cn.qx.cases.proxy.IProxyCase;
+import cn.qx.domain.audit.model.entity.RequestLog;
+import cn.qx.domain.audit.model.valobj.RequestLogQuery;
 import cn.qx.domain.channel.model.entity.Channel;
 import cn.qx.domain.identity.model.entity.ApiKey;
 import com.alibaba.fastjson2.JSON;
@@ -29,6 +32,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.List;
 import java.util.UUID;
 
 import static org.junit.Assert.assertEquals;
@@ -57,6 +61,10 @@ public class DataPlaneAuthTest {
     /** 数据面代理用例 */
     @Resource
     private IProxyCase proxyCase;
+
+    /** 请求日志用例：断言 filter 拒绝也留痕。 */
+    @Resource
+    private IRequestLogCase requestLogCase;
 
     /** 本测试专属假上游 */
     private MockWebServer upstream;
@@ -89,8 +97,10 @@ public class DataPlaneAuthTest {
                         {"id":"chatcmpl-test","object":"chat.completion","choices":[],"usage":{"prompt_tokens":1,"completion_tokens":1,"total_tokens":2}}
                         """));
 
+        List<RequestLog> before = requestLogCase.page(RequestLogQuery.builder()
+                .statusCode(401).page(1).size(200).build()).getRecords();
         JSONObject body = new JSONObject();
-        body.put("model", "auth-test-model");
+        body.put("model", "auth-missing-key-" + UUID.randomUUID());
         body.put("stream", false);
         body.put("messages", JSON.parseArray("""
                 [{"role":"user","content":"hi"}]
@@ -109,6 +119,16 @@ public class DataPlaneAuthTest {
         assertEquals("application/json", contentType(response));
         assertTrue("错误码应为 invalid_api_key", response.body().contains("invalid_api_key"));
         assertEquals("filter 失败不应触达上游", 0, upstream.getRequestCount());
+        List<RequestLog> after = requestLogCase.page(RequestLogQuery.builder()
+                .statusCode(401).page(1).size(200).build()).getRecords();
+        List<RequestLog> added = after.stream()
+                .filter(item -> before.stream().noneMatch(old -> old.getId().equals(item.getId())))
+                .toList();
+        log.info("缺密钥新增日志: {}", JSON.toJSONString(added));
+        assertEquals("filter 401 也应留一条日志", 1, added.size());
+        assertEquals(Integer.valueOf(401), added.get(0).getStatusCode());
+        assertEquals("filter 快速失败不读取/落库正文", null, added.get(0).getRequestBody());
+        requestLogCase.delete(added.get(0).getId());
     }
 
     /**

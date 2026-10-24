@@ -62,6 +62,15 @@ security:
     seed-on-start: true
     cache-enabled: true
 
+# 数据面调度与日志保留档
+dispatch:
+  # 总尝试次数 = retry-count + 1；缺省不设上限，沿用完整 failover 队列
+  # retry-count: 3
+
+request-log:
+  # detailed=原样 / brief=请求 messages 最近 3 条 / basic=正文不落库
+  policy: detailed
+
 # 日志
 logging:
   level:

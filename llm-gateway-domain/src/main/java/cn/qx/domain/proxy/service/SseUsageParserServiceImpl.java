@@ -1,5 +1,6 @@
 package cn.qx.domain.proxy.service;
 
+import cn.qx.domain.channel.model.valobj.TokenUsage;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONObject;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
@@ -8,6 +9,7 @@ import org.springframework.stereotype.Component;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Optional;
 import java.util.OptionalLong;
 
 /**
@@ -53,6 +55,21 @@ public class SseUsageParserServiceImpl implements ISseUsageParserService {
     @Override
     public OptionalLong usageTokens() {
         return usageTokens;
+    }
+
+    @Override
+    public Optional<TokenUsage> usage() {
+        if (usageTokens.isEmpty()) {
+            return Optional.empty();
+        }
+        long prompt = promptTokens == null ? 0L : promptTokens;
+        long completion = completionTokens == null ? 0L : completionTokens;
+        long total = totalTokens == null ? usageTokens.getAsLong() : totalTokens;
+        return Optional.of(TokenUsage.builder()
+                .promptTokens(prompt)
+                .completionTokens(completion)
+                .totalTokens(total)
+                .build());
     }
 
     private void parseLine() {

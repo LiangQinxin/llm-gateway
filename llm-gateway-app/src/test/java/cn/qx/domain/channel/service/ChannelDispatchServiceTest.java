@@ -10,6 +10,8 @@ import com.alibaba.fastjson2.JSONArray;
 import com.alibaba.fastjson2.JSONObject;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
+import okhttp3.mockwebserver.MockResponse;
+import okhttp3.mockwebserver.MockWebServer;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -161,26 +163,40 @@ public class ChannelDispatchServiceTest {
      * Anthropic 渠道可参与数据面路由：转换后转发成功。
      */
     @Test
-    public void anthropic_channel_is_routable_after_forwarding_support() {
+    public void anthropic_channel_is_routable_after_forwarding_support() throws Exception {
         String model = "anthropic-only-" + UUID.randomUUID();
-        Channel channel = channelCase.create(Channel.builder()
-                .name("测试-dispatch-anthropic-" + UUID.randomUUID())
-                .type("anthropic")
-                .baseUrl("http://127.0.0.1:8777")
-                .apiKey(API_KEY)
-                .models("[\"" + model + "\"]")
-                .priority(10000)
-                .weight(100)
-                .config("{}")
-                .modelMapping("{}")
-                .build());
-        try {
-            DispatchOutcome outcome = dispatchInvoker.invoke(request(model, false, "anthropic"));
-            log.info("Anthropic 路由结果: {}", JSON.toJSONString(outcome));
-            assertTrue("Anthropic 适配器应参与数据面路由", outcome.isRouted());
-            assertEquals("Anthropic 转换转发应成功", 200, outcome.getUnary().getStatusCode());
-        } finally {
-            channelCase.delete(channel.getId());
+        try (MockWebServer upstream = new MockWebServer()) {
+            upstream.enqueue(new MockResponse()
+                    .setResponseCode(200)
+                    .setHeader("Content-Type", "application/json")
+                    .setBody("""
+                            {"id":"msg_dispatch","type":"message","role":"assistant",
+                             "model":"%s","content":[{"type":"text","text":"hello"}],
+                             "stop_reason":"end_turn",
+                             "usage":{"input_tokens":3,"output_tokens":2}}
+                            """.formatted(model)));
+            upstream.start();
+            Channel channel = channelCase.create(Channel.builder()
+                    .name("测试-dispatch-anthropic-" + UUID.randomUUID())
+                    .type("anthropic")
+                    .baseUrl(upstream.url("").toString())
+                    .apiKey("upstream-key")
+                    .models("[\"" + model + "\"]")
+                    .priority(10000)
+                    .weight(100)
+                    .config("{}")
+                    .modelMapping("{}")
+                    .build());
+            try {
+                DispatchOutcome outcome = dispatchInvoker.invoke(
+                        request(model, false, "anthropic"));
+                log.info("Anthropic 路由结果: {}", JSON.toJSONString(outcome));
+                assertTrue("Anthropic 适配器应参与数据面路由", outcome.isRouted());
+                assertEquals("Anthropic 转换转发应成功",
+                        200, outcome.getUnary().getStatusCode());
+            } finally {
+                channelCase.delete(channel.getId());
+            }
         }
     }
 

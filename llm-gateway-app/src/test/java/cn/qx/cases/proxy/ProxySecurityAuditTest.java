@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
@@ -65,6 +66,8 @@ public class ProxySecurityAuditTest {
         log.info("ProxyCase 风险日志: {}", JSON.toJSONString(records));
         assertEquals(1, records.size());
         assertEquals("Block", records.get(0).getSecurityAction());
+        assertFalse("阻断请求落库体也必须移除原始敏感值",
+                records.get(0).getRequestBody().contains("AKIA1234567890ABCDEF"));
         assertTrue(securityFindingRepository.countByLogId(records.get(0).getId()) > 0);
     }
 }
