@@ -41,7 +41,7 @@ public class ApiKeyCaseTest {
     /**
      * 密钥全生命周期整链路。
      * <pre>
-     * 创建（sk-waliapi 前缀/默认启用）→ 鉴权与白名单拒绝 → 配额封顶
+     * 创建（sk-llmapi 前缀/默认启用）→ 鉴权与白名单拒绝 → 配额封顶
      * → 禁用不可鉴权 → 修改与空白名单放行 → 0=不限配额继续累加 → 删除后不可见
      * </pre>
      */
@@ -58,7 +58,7 @@ public class ApiKeyCaseTest {
         log.info("创建密钥: {}", JSON.toJSONString(created));
         try {
             assertNotNull("应自动生成密钥", created.getKey());
-            assertTrue("应使用 sk-waliapi 前缀", created.getKey().startsWith("sk-waliapi-"));
+            assertTrue("应使用 sk-llmapi 前缀", created.getKey().startsWith("sk-llmapi-"));
             assertEquals("默认启用", Integer.valueOf(1), created.getStatus());
             assertEquals("默认配额使用为 0", Long.valueOf(0), created.getQuotaUsed());
 
@@ -107,7 +107,7 @@ public class ApiKeyCaseTest {
      */
     @Test
     public void duplicate_key_is_rejected_and_expired_key_cannot_authenticate() {
-        String duplicate = "sk-waliapi-test-" + UUID.randomUUID();
+        String duplicate = "sk-llmapi-test-" + UUID.randomUUID();
         ApiKey first = apiKeyCase.create(ApiKey.builder().name("重复一").key(duplicate).build());
         ApiKey expired = apiKeyCase.create(ApiKey.builder()
                 .name("已过期")

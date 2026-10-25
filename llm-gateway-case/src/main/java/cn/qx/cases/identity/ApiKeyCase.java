@@ -32,7 +32,7 @@ public class ApiKeyCase implements IApiKeyCase {
         }
         String now = TimeUtils.now();
         apiKey.setId(isBlank(apiKey.getId()) ? TimeUtils.uuid() : apiKey.getId());
-        apiKey.setKey(isBlank(apiKey.getKey()) ? "sk-waliapi-" + TimeUtils.uuid() : apiKey.getKey());
+        apiKey.setKey(isBlank(apiKey.getKey()) ? "sk-llmapi-" + TimeUtils.uuid() : apiKey.getKey());
         apiKey.setStatus(apiKey.getStatus() == null ? 1 : apiKey.getStatus());
         apiKey.setAllowedModels(defaultJson(apiKey.getAllowedModels()));
         apiKey.setAllowedChannels(defaultJson(apiKey.getAllowedChannels()));

@@ -2,6 +2,7 @@ package cn.qx.domain.audit.adapter.repository;
 
 import cn.qx.domain.audit.model.entity.RequestLog;
 import cn.qx.domain.audit.model.valobj.RequestLogQuery;
+import cn.qx.domain.audit.model.valobj.RequestLogStats;
 
 import java.util.List;
 
@@ -21,6 +22,9 @@ public interface IRequestLogRepository {
 
     /** 按查询条件分页查询日志列表。 */
     List<RequestLog> page(RequestLogQuery query);
+
+    /** 聚合统计：总请求数、总 token、平均耗时、错误请求数。 */
+    RequestLogStats stats();
 
     /** 按 ID 删除请求日志，返回影响行数。 */
     int deleteById(String id);

@@ -1,0 +1,103 @@
+/* ===== 设计系统：参考 LLMAPI 桌面端设计语言 ===== */
+:root{
+  /* 品牌色 */
+  --primary:#2f6fed;
+  --primary-d:#285fd0;
+  --primary-l:#3478f6;
+  --primary-ll:rgba(47,111,237,.1);
+  --primary-foreground:#ffffff;
+  --accent:#dbe7ff;
+  --accent-fg:#1b2a41;
+
+  /* 语义色 */
+  --success:#1f8f5f;
+  --success-l:#ecfdf5;
+  --warning:#c48a21;
+  --warning-l:#fef3c7;
+  --destructive:#dc4c64;
+  --destructive-l:#fee2e2;
+
+  /* 中性色 - 亮色 */
+  --background:#ffffff;
+  --background-gradient:linear-gradient(180deg,#ffffff 0%,#ffffff 100%);
+  --foreground:#16202b;
+  --card:#ffffff;
+  --card-foreground:#16202b;
+  --card-soft:rgba(255,255,255,.92);
+  --muted:#f5f5f5;
+  --muted-foreground:#6b6557;
+  --sidebar:#F9F9F9;
+  --border:rgba(120,90,40,.10);
+  --border-strong:rgba(120,90,40,.16);
+  --slate-l:#ffffff;
+
+  /* 图标色调背景 */
+  --tone-blue:#eff6ff; --tone-blue-fg:#2563eb;
+  --tone-amber:#fffbeb; --tone-amber-fg:#d97706;
+  --tone-emerald:#ecfdf5; --tone-emerald-fg:#059669;
+  --tone-indigo:#eef2ff; --tone-indigo-fg:#4f46e5;
+  --tone-orange:#fff7ed; --tone-orange-fg:#ea580c;
+  --tone-violet:#f5f3ff; --tone-violet-fg:#7c3aed;
+  --tone-cyan:#ecfeff; --tone-cyan-fg:#0891b2;
+  --tone-teal:#f0fdfa; --tone-teal-fg:#0d9488;
+  --tone-rose:#fff1f2; --tone-rose-fg:#e11d48;
+  --tone-slate:#f8fafc; --tone-slate-fg:#475569;
+
+  /* 圆角 */
+  --rs:8px; --rs-sm:6px; --rs-xs:4px; --rs-lg:12px; --rs-xl:14px; --rs-2xl:16px; --rs-full:9999px;
+
+  /* 阴影 */
+  --shadow:0 1px 2px rgba(15,23,42,.04);
+  --shadow-md:0 8px 18px rgba(15,23,42,.05);
+  --shadow-lg:0 12px 30px rgba(31,41,55,.08);
+  --shadow-xl:0 20px 40px rgba(31,41,55,.12);
+  --shadow-primary:0 10px 20px rgba(47,111,237,.18);
+
+  /* 间距 */
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:20px; --sp-6:24px; --sp-8:32px;
+
+  /* 布局 */
+  --sidebar-w:240px;
+
+  /* 过渡 */
+  --ease:.16s ease;
+}
+
+/* 暗色模式 */
+[data-theme="dark"]{
+  --background:#0b1120;
+  --background-gradient:linear-gradient(180deg,#0b1120 0%,#0f172a 100%);
+  --foreground:#e2e8f0;
+  --card:#131c31;
+  --card-foreground:#e2e8f0;
+  --card-soft:rgba(19,28,49,.92);
+  --muted:#1a2540;
+  --muted-foreground:#94a3b8;
+  --sidebar:#0f172a;
+  --border:rgba(148,163,184,.12);
+  --border-strong:rgba(148,163,184,.2);
+  --slate-l:#16203a;
+
+  --primary:#3b82f6;
+  --primary-d:#2563eb;
+  --primary-l:#60a5fa;
+  --primary-ll:rgba(59,130,246,.12);
+  --accent:rgba(59,130,246,.15);
+  --accent-fg:#bfdbfe;
+
+  --tone-blue:rgba(59,130,246,.15); --tone-blue-fg:#60a5fa;
+  --tone-amber:rgba(217,119,6,.15); --tone-amber-fg:#fbbf24;
+  --tone-emerald:rgba(16,185,129,.15); --tone-emerald-fg:#34d399;
+  --tone-indigo:rgba(99,102,241,.15); --tone-indigo-fg:#818cf8;
+  --tone-orange:rgba(234,88,12,.15); --tone-orange-fg:#fb923c;
+  --tone-violet:rgba(124,58,237,.15); --tone-violet-fg:#a78bfa;
+  --tone-cyan:rgba(8,145,178,.15); --tone-cyan-fg:#22d3ee;
+  --tone-teal:rgba(13,148,136,.15); --tone-teal-fg:#2dd4bf;
+  --tone-rose:rgba(225,29,72,.15); --tone-rose-fg:#fb7185;
+  --tone-slate:rgba(148,163,184,.1); --tone-slate-fg:#94a3b8;
+
+  --shadow:0 1px 2px rgba(0,0,0,.3);
+  --shadow-md:0 8px 18px rgba(0,0,0,.3);
+  --shadow-lg:0 12px 30px rgba(0,0,0,.4);
+  --shadow-xl:0 20px 40px rgba(0,0,0,.5);
+}

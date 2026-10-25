@@ -21,4 +21,28 @@
         SELECT COUNT(*) FROM security_audit_finding WHERE log_id = #{logId}
     </select>
 
+    <resultMap id="FindingMap" type="cn.qx.infrastructure.dao.po.SecurityFindingPO">
+        <id column="id" property="id"/>
+        <result column="log_id" property="logId"/>
+        <result column="phase" property="phase"/>
+        <result column="category" property="category"/>
+        <result column="rule_id" property="ruleId"/>
+        <result column="severity" property="severity"/>
+        <result column="title" property="title"/>
+        <result column="description" property="description"/>
+        <result column="location" property="location"/>
+        <result column="evidence_masked" property="evidenceMasked"/>
+        <result column="evidence_hash" property="evidenceHash"/>
+        <result column="action" property="action"/>
+        <result column="created_at" property="createdAt"/>
+    </resultMap>
+
+    <select id="queryLatest" resultMap="FindingMap">
+        SELECT id, log_id, phase, category, rule_id, severity, title, description,
+               location, evidence_masked, evidence_hash, action, created_at
+        FROM security_audit_finding
+        ORDER BY created_at DESC, id DESC
+        LIMIT #{limit}
+    </select>
+
 </mapper>

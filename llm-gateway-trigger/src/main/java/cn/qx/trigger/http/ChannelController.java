@@ -2,6 +2,7 @@ package cn.qx.trigger.http;
 
 import cn.qx.api.IChannelCase;
 import cn.qx.api.dto.channel.ChannelRequest;
+import cn.qx.api.dto.channel.ChannelView;
 import cn.qx.api.dto.common.ToggleRequest;
 import cn.qx.api.response.Response;
 import cn.qx.api.response.Responses;
@@ -31,33 +32,34 @@ public class ChannelController {
     private IChannelCase channelCase;
 
     @GetMapping
-    public Response<List<Channel>> list() {
-        return Responses.success(channelCase.list());
+    public Response<List<ChannelView>> list() {
+        return Responses.success(channelCase.list().stream().map(ChannelView::from).toList());
     }
 
     @GetMapping("/enabled")
-    public Response<List<Channel>> enabled() {
-        return Responses.success(channelCase.listEnabledOrdered());
+    public Response<List<ChannelView>> enabled() {
+        return Responses.success(
+                channelCase.listEnabledOrdered().stream().map(ChannelView::from).toList());
     }
 
     @GetMapping("/{id}")
-    public Response<Channel> get(@PathVariable("id") String id) {
-        return Responses.success(channelCase.get(id));
+    public Response<ChannelView> get(@PathVariable("id") String id) {
+        return Responses.success(ChannelView.from(channelCase.get(id)));
     }
 
     @PostMapping
-    public Response<Channel> create(@RequestBody ChannelRequest request) {
-        return Responses.success(channelCase.create(toEntity(request, null)));
+    public Response<ChannelView> create(@RequestBody ChannelRequest request) {
+        return Responses.success(ChannelView.from(channelCase.create(toEntity(request, null))));
     }
 
     @PutMapping("/{id}")
-    public Response<Channel> update(@PathVariable("id") String id, @RequestBody ChannelRequest request) {
-        return Responses.success(channelCase.update(toEntity(request, id)));
+    public Response<ChannelView> update(@PathVariable("id") String id, @RequestBody ChannelRequest request) {
+        return Responses.success(ChannelView.from(channelCase.update(toEntity(request, id))));
     }
 
     @PostMapping("/{id}/toggle")
-    public Response<Channel> toggle(@PathVariable("id") String id, @RequestBody ToggleRequest request) {
-        return Responses.success(channelCase.toggle(id, request.isEnabled()));
+    public Response<ChannelView> toggle(@PathVariable("id") String id, @RequestBody ToggleRequest request) {
+        return Responses.success(ChannelView.from(channelCase.toggle(id, request.isEnabled())));
     }
 
     @DeleteMapping("/{id}")

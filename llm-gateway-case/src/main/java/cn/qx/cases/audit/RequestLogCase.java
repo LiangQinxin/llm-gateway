@@ -5,6 +5,7 @@ import cn.qx.api.dto.audit.RequestLogPageResult;
 import cn.qx.domain.audit.adapter.repository.IRequestLogRepository;
 import cn.qx.domain.audit.model.entity.RequestLog;
 import cn.qx.domain.audit.model.valobj.RequestLogQuery;
+import cn.qx.domain.audit.model.valobj.RequestLogStats;
 import cn.qx.types.common.TimeUtils;
 import cn.qx.types.enums.ResponseCode;
 import cn.qx.types.exception.AppException;
@@ -82,6 +83,11 @@ public class RequestLogCase implements IRequestLogCase {
             throw new AppException(ResponseCode.NOT_FOUND.getCode(), "请求日志不存在: " + id);
         }
         return requestLog;
+    }
+
+    @Override
+    public RequestLogStats stats() {
+        return requestLogRepository.stats();
     }
 
     @Override

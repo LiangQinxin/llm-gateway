@@ -2,6 +2,8 @@ package cn.qx.trigger.http;
 
 import cn.qx.api.IRequestLogCase;
 import cn.qx.api.dto.audit.RequestLogPageResult;
+import cn.qx.api.dto.audit.RequestLogPageView;
+import cn.qx.api.dto.audit.RequestLogView;
 import cn.qx.api.response.Response;
 import cn.qx.api.response.Responses;
 import cn.qx.domain.audit.model.entity.RequestLog;
@@ -26,8 +28,9 @@ public class RequestLogController {
     private IRequestLogCase requestLogCase;
 
     @GetMapping
-    public Response<RequestLogPageResult> page(
+    public Response<RequestLogPageView> page(
             @RequestParam(value = "model", required = false) String model,
+            @RequestParam(value = "keyword", required = false) String keyword,
             @RequestParam(value = "apiKeyId", required = false) String apiKeyId,
             @RequestParam(value = "channelId", required = false) String channelId,
             @RequestParam(value = "statusCode", required = false) Integer statusCode,
@@ -37,6 +40,7 @@ public class RequestLogController {
             @RequestParam(value = "size", defaultValue = "20") int size) {
         RequestLogQuery query = RequestLogQuery.builder()
                 .model(model)
+                .keyword(keyword)
                 .apiKeyId(apiKeyId)
                 .channelId(channelId)
                 .statusCode(statusCode)
@@ -45,7 +49,14 @@ public class RequestLogController {
                 .page(page)
                 .size(size)
                 .build();
-        return Responses.success(requestLogCase.page(query));
+        RequestLogPageResult result = requestLogCase.page(query);
+        RequestLogPageView view = RequestLogPageView.builder()
+                .records(result.getRecords().stream().map(RequestLogView::from).toList())
+                .total(result.getTotal())
+                .page(result.getPage())
+                .size(result.getSize())
+                .build();
+        return Responses.success(view);
     }
 
     @GetMapping("/{id}")

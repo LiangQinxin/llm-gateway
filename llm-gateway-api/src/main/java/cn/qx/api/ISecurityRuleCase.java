@@ -5,6 +5,7 @@ import cn.qx.api.dto.security.BuiltinRuleUpdateRequest;
 import cn.qx.api.dto.security.CustomRuleRequest;
 import cn.qx.api.dto.security.CustomRuleResult;
 import cn.qx.api.dto.security.CustomRuleUpdateRequest;
+import cn.qx.api.dto.security.SecurityFindingResult;
 
 import java.util.List;
 
@@ -39,4 +40,7 @@ public interface ISecurityRuleCase {
 
     /** 删除自定义规则。 */
     void deleteCustom(String id);
+
+    /** 按创建时间倒序取最近 N 条安全发现记录（管理面审计列表）。 */
+    List<SecurityFindingResult> listFindings(int limit);
 }

@@ -41,7 +41,11 @@
             #{id}, #{ruleId}, #{category}, #{name}, #{severity}, NULL, NULL, #{title}, #{description},
             #{toggleKey}, #{enabled}, #{createdAt}, #{updatedAt}
         )
-        ON DUPLICATE KEY UPDATE rule_id = rule_id
+        ON DUPLICATE KEY UPDATE
+            name = #{name},
+            title = #{title},
+            description = #{description},
+            updated_at = #{updatedAt}
     </insert>
 
     <update id="updateByRuleId" parameterType="cn.qx.infrastructure.dao.po.SecurityBuiltinRulePO">

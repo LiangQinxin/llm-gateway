@@ -33,14 +33,8 @@ spring:
 # MyBatis 配置（显式列出真实 mapper，脚手架模板 frame_case_mapper.xml 引用不存在的占位类，
 # 通配扫描会解析失败，故不纳入；后续新增 mapper 在此追加）
 mybatis:
-  mapper-locations:
-    - classpath:/mybatis/mapper/channel_mapper.xml
-    - classpath:/mybatis/mapper/api_key_mapper.xml
-    - classpath:/mybatis/mapper/request_log_mapper.xml
-    - classpath:/mybatis/mapper/security_builtin_rule_mapper.xml
-    - classpath:/mybatis/mapper/security_custom_rule_mapper.xml
-    - classpath:/mybatis/mapper/security_finding_mapper.xml
-  config-location:  classpath:/mybatis/config/mybatis-config.xml
+  mapper-locations: classpath:/mybatis/mapper/*.xml
+  config-location: classpath:/mybatis/config/mybatis-config.xml
 
 # 安全审计与规则治理
 security:

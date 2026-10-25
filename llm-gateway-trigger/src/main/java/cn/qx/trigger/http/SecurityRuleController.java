@@ -7,6 +7,7 @@ import cn.qx.api.dto.security.CustomRuleRequest;
 import cn.qx.api.dto.security.BuiltinRuleResult;
 import cn.qx.api.dto.security.CustomRuleResult;
 import cn.qx.api.dto.security.CustomRuleUpdateRequest;
+import cn.qx.api.dto.security.SecurityFindingResult;
 import cn.qx.api.response.Response;
 import cn.qx.api.response.Responses;
 import jakarta.annotation.Resource;
@@ -56,6 +57,13 @@ public class SecurityRuleController {
     public Response<List<CustomRuleResult>> listCustom(
             @RequestParam(name = "ruleType", required = false) String ruleType) {
         return Responses.success(securityRuleCase.listCustom(ruleType));
+    }
+
+    /** 安全发现审计列表：按创建时间倒序，默认最近 100 条，上限 500。 */
+    @GetMapping("/findings")
+    public Response<List<SecurityFindingResult>> listFindings(
+            @RequestParam(name = "limit", defaultValue = "100") int limit) {
+        return Responses.success(securityRuleCase.listFindings(limit));
     }
 
     @PostMapping("/custom")

@@ -6,8 +6,10 @@ import cn.qx.api.dto.security.BuiltinRuleUpdateRequest;
 import cn.qx.api.dto.security.CustomRuleRequest;
 import cn.qx.api.dto.security.CustomRuleResult;
 import cn.qx.api.dto.security.CustomRuleUpdateRequest;
+import cn.qx.api.dto.security.SecurityFindingResult;
 import cn.qx.domain.security.adapter.repository.IBuiltinRuleRepository;
 import cn.qx.domain.security.adapter.repository.ICustomRuleRepository;
+import cn.qx.domain.security.adapter.repository.ISecurityFindingRepository;
 import cn.qx.domain.security.model.valobj.SecuritySeverity;
 import cn.qx.domain.security.service.rule.CustomRuleMeta;
 import cn.qx.domain.security.service.rule.RuleMetadata;
@@ -53,6 +55,10 @@ public class SecurityRuleCase implements ISecurityRuleCase {
     /** 安全规则进程内缓存服务 */
     @Resource
     private ISecurityRuleCacheService ruleCache;
+
+    /** 安全发现仓储端口（审计列表查询） */
+    @Resource
+    private ISecurityFindingRepository securityFindingRepository;
 
     /** 编程式事务管理器（重置/创建落库用） */
     @Resource
@@ -196,6 +202,12 @@ public class SecurityRuleCase implements ISecurityRuleCase {
         customRuleRepository.deleteById(id);
         ruleCache.refresh();
         log.info("自定义安全规则已删除: id={}", id);
+    }
+
+    @Override
+    public List<SecurityFindingResult> listFindings(int limit) {
+        return securityFindingRepository.latest(limit).stream()
+                .map(SecurityFindingResult::from).toList();
     }
 
     private CustomRuleMeta requireCustom(String id) {

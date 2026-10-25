@@ -17,4 +17,7 @@ public interface SecurityFindingMapper {
 
     /** 按请求日志 id 统计安全发现条数。 */
     long countByLogId(@Param("logId") String logId);
+
+    /** 按创建时间倒序取最近 N 条安全发现。 */
+    List<SecurityFindingPO> queryLatest(@Param("limit") int limit);
 }

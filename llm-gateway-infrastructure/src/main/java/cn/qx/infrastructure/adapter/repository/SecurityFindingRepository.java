@@ -3,6 +3,7 @@ package cn.qx.infrastructure.adapter.repository;
 import cn.qx.domain.security.adapter.repository.ISecurityFindingRepository;
 import cn.qx.domain.security.model.valobj.ScanFinding;
 import cn.qx.domain.security.model.valobj.ScanPhase;
+import cn.qx.domain.security.model.valobj.SecurityFindingRecord;
 import cn.qx.infrastructure.dao.SecurityFindingMapper;
 import cn.qx.infrastructure.dao.po.SecurityFindingPO;
 import jakarta.annotation.Resource;
@@ -41,5 +42,28 @@ public class SecurityFindingRepository implements ISecurityFindingRepository {
     @Override
     public long countByLogId(String logId) {
         return mapper.countByLogId(logId);
+    }
+
+    @Override
+    public List<SecurityFindingRecord> latest(int limit) {
+        return mapper.queryLatest(Math.max(1, Math.min(500, limit)))
+                .stream().map(SecurityFindingRepository::toRecord).toList();
+    }
+
+    private static SecurityFindingRecord toRecord(SecurityFindingPO po) {
+        return SecurityFindingRecord.builder()
+                .id(po.getId())
+                .logId(po.getLogId())
+                .phase(po.getPhase())
+                .category(po.getCategory())
+                .ruleId(po.getRuleId())
+                .severity(po.getSeverity())
+                .title(po.getTitle())
+                .description(po.getDescription())
+                .location(po.getLocation())
+                .evidenceMasked(po.getEvidenceMasked())
+                .action(po.getAction())
+                .createdAt(po.getCreatedAt())
+                .build();
     }
 }

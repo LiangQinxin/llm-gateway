@@ -20,11 +20,14 @@ public interface RequestLogMapper {
     /** 按主键 id 查询请求日志。 */
     RequestLogPO queryById(@Param("id") String id);
 
-    /** 按查询条件（model/apiKeyId/channelId/statusCode/createdFrom~createdTo）统计条数。 */
+    /** 按查询条件（model/keyword/apiKeyId/channelId/statusCode/createdFrom~createdTo）统计条数。 */
     long count(@Param("q") RequestLogQuery query);
 
     /** 按查询条件分页查询，按 seq 倒序，LIMIT/OFFSET 取自条件。 */
     List<RequestLogPO> queryPage(@Param("q") RequestLogQuery query);
+
+    /** 聚合统计：总请求数、总 token、平均耗时、错误请求数（status_code &gt;= 400）。 */
+    cn.qx.domain.audit.model.valobj.RequestLogStats stats();
 
     /** 按主键删除请求日志，返回影响行数。 */
     int deleteById(@Param("id") String id);

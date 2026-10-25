@@ -3,6 +3,7 @@ package cn.qx.infrastructure.adapter.repository;
 import cn.qx.domain.audit.adapter.repository.IRequestLogRepository;
 import cn.qx.domain.audit.model.entity.RequestLog;
 import cn.qx.domain.audit.model.valobj.RequestLogQuery;
+import cn.qx.domain.audit.model.valobj.RequestLogStats;
 import cn.qx.infrastructure.dao.RequestLogMapper;
 import cn.qx.infrastructure.dao.po.RequestLogPO;
 import jakarta.annotation.Resource;
@@ -43,6 +44,11 @@ public class RequestLogRepository implements IRequestLogRepository {
     @Override
     public List<RequestLog> page(RequestLogQuery query) {
         return requestLogMapper.queryPage(query).stream().map(RequestLogRepository::toEntity).toList();
+    }
+
+    @Override
+    public RequestLogStats stats() {
+        return requestLogMapper.stats();
     }
 
     @Override

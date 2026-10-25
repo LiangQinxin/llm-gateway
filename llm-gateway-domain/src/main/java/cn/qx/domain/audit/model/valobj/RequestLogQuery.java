@@ -16,6 +16,8 @@ public class RequestLogQuery {
 
     /** 按请求模型名筛选 */
     private String model;
+    /** 关键词模糊筛选（命中 model / trace_id / api_key_name / channel_name / error_message） */
+    private String keyword;
     /** 按 API 密钥 ID 筛选（UUID） */
     private String apiKeyId;
     /** 按渠道 ID 筛选（UUID） */

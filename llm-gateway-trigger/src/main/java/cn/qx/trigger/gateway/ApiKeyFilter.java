@@ -35,6 +35,12 @@ public class ApiKeyFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
+        // CORS 预检请求（OPTIONS）由 Spring 的 CORS 处理器接管，不做鉴权
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         String path = request.getRequestURI();
         if (!isDataPlanePath(path) || isPublicPath(path)) {
             filterChain.doFilter(request, response);

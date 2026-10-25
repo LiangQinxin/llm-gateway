@@ -45,6 +45,15 @@
     <sql id="queryWhere">
         <where>
             <if test="q.model != null and q.model != ''">AND model = #{q.model}</if>
+            <if test="q.keyword != null and q.keyword != ''">
+                AND (
+                    model LIKE CONCAT('%', #{q.keyword}, '%')
+                    OR trace_id LIKE CONCAT('%', #{q.keyword}, '%')
+                    OR api_key_name LIKE CONCAT('%', #{q.keyword}, '%')
+                    OR channel_name LIKE CONCAT('%', #{q.keyword}, '%')
+                    OR error_message LIKE CONCAT('%', #{q.keyword}, '%')
+                )
+            </if>
             <if test="q.apiKeyId != null and q.apiKeyId != ''">AND api_key_id = #{q.apiKeyId}</if>
             <if test="q.channelId != null and q.channelId != ''">AND channel_id = #{q.channelId}</if>
             <if test="q.statusCode != null">AND status_code = #{q.statusCode}</if>
@@ -86,6 +95,15 @@
         <include refid="queryWhere"/>
         ORDER BY seq DESC
         LIMIT #{q.size} OFFSET #{q.offset}
+    </select>
+
+    <select id="stats" resultType="cn.qx.domain.audit.model.valobj.RequestLogStats">
+        SELECT
+            COUNT(*) AS totalRequests,
+            COALESCE(SUM(total_tokens), 0) AS totalTokens,
+            COALESCE(AVG(duration_ms), 0) AS avgDurationMs,
+            COALESCE(SUM(CASE WHEN status_code &gt;= 400 THEN 1 ELSE 0 END), 0) AS totalErrors
+        FROM request_logs
     </select>
 
     <delete id="deleteById">

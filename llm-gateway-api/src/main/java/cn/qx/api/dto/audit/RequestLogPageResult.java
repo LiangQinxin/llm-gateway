@@ -17,7 +17,7 @@ import java.util.List;
 @AllArgsConstructor
 public class RequestLogPageResult {
 
-    /** 当前页请求日志记录列表 */
+    /** 当前页请求日志记录列表（领域实体，管理面展示由 Controller 转视图） */
     private List<RequestLog> records;
     /** 查询结果总条数 */
     private long total;

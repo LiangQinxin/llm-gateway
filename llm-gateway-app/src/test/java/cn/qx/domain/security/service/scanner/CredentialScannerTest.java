@@ -85,6 +85,32 @@ public class CredentialScannerTest {
     }
 
     /**
+     * 中文紧贴密钥（无空格分隔）也必须命中——
+     * 旧版正则用 \b 锚定，Java \b 把中文字符视为 word 字符，
+     * 导致"我的 sk-ant-xxx 这个是什么"这种中文 prompt 场景全部漏报。
+     */
+    @Test
+    public void credentials_adjacent_to_chinese_are_detected() {
+        String body = """
+                我的 sk-ant-api03-abcdefghijklmnopqrstuvwxyz 这个是什么
+                密钥 sk-proj-abcdefghijklmnopqrstuvwx 泄露了
+                前缀AKIA1234567890ABCDEF后缀
+                """;
+        AuditResult result = securityScanner.scan(cn.qx.domain.security.model.valobj.ScanRequest.of(
+                body, SecurityTestSupport.credentialOnly(SecurityMode.WARN)));
+        log.info("中文紧贴凭证扫描结果: {}", JSON.toJSONString(result));
+
+        Set<String> rules = result.getFindings().stream()
+                .map(ScanFinding::getRuleId).collect(Collectors.toSet());
+        assertTrue("中文紧贴 sk-ant- 应命中",
+                rules.contains("credential_apikey_anthropic"));
+        assertTrue("中文紧贴 sk-proj- 应命中",
+                rules.contains("credential_apikey_openai"));
+        assertTrue("中文紧贴 AKIA 应命中",
+                rules.contains("credential_aws_access"));
+    }
+
+    /**
      * 键值对值长度 ≥8 且字母数字混合升级 High；示例值不命中。
      */
     @Test

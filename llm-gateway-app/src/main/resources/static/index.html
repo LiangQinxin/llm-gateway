@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>LLMAPI - 本地 LLM API 网关</title>
+<link rel="stylesheet" href="css/variables.css">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/components.css">
+<link rel="stylesheet" href="css/pages.css">
+</head>
+<body>
+<button class="menu-toggle" onclick="toggleSidebar()" aria-label="菜单">
+  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+</button>
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo-card">
+      <div class="sidebar-logo">
+        <div class="logo-icon">L</div>
+        <div style="min-width:0;flex:1">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+            <h1>LLMAPI</h1>
+            <button class="theme-toggle" onclick="toggleTheme()" id="themeBtn" title="切换主题"></button>
+          </div>
+          <div id="logoStatus" style="margin-top:8px;display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--muted-foreground)">
+            <span class="srv-dot off" id="logoStatusDot" style="width:8px;height:8px"></span>
+            <span id="logoStatusText">未启动</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="sidebar-footer" id="sidebarFooter"></div>
+    <nav class="sidebar-nav" id="nav"></nav>
+  </aside>
+  <div class="sidebar-backdrop" id="backdrop" onclick="toggleSidebar()"></div>
+  <main class="main">
+    <div class="main-scroll">
+      <div class="page-container" data-page="dashboard"></div>
+      <div class="page-container" data-page="channels" style="display:none"></div>
+      <div class="page-container" data-page="apikeys" style="display:none"></div>
+      <div class="page-container" data-page="logs" style="display:none"></div>
+      <div class="page-container" data-page="security" style="display:none"></div>
+      <div class="page-container" data-page="usage" style="display:none"></div>
+    </div>
+  </main>
+</div>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal" id="modalContent"></div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script src="js/icons.js"></script>
+<script src="js/helpers.js"></script>
+<script src="js/api.js"></script>
+<script src="js/state.js"></script>
+<script src="js/components.js"></script>
+<script src="js/pages/dashboard.js"></script>
+<script src="js/pages/channels.js"></script>
+<script src="js/pages/apikeys.js"></script>
+<script src="js/pages/logs.js"></script>
+<script src="js/pages/security.js"></script>
+<script src="js/pages/usage.js"></script>
+<script>
+document.getElementById('modalOverlay').addEventListener('click',function(e){
+  if(e.target.id==='modalOverlay')closeModal();
+});
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closeModal()});
+
+initTheme();
+renderNav();
+renderSidebarFooter();
+['dashboard','channels','apikeys','logs','security','usage'].forEach(id=>{
+  updatePage(id);
+});
+loadDashboard();
+// 定时刷新服务状态
+setInterval(renderSidebarFooter,5000);
+</script>
+</body>
+</html>

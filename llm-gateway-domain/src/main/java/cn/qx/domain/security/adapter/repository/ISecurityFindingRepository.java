@@ -2,6 +2,7 @@ package cn.qx.domain.security.adapter.repository;
 
 import cn.qx.domain.security.model.valobj.ScanFinding;
 import cn.qx.domain.security.model.valobj.ScanPhase;
+import cn.qx.domain.security.model.valobj.SecurityFindingRecord;
 
 import java.util.List;
 
@@ -18,4 +19,7 @@ public interface ISecurityFindingRepository {
 
     /** 按请求日志 ID 统计关联的安全发现条数。 */
     long countByLogId(String logId);
+
+    /** 按创建时间倒序取最近 N 条安全发现（管理面审计列表）。 */
+    List<SecurityFindingRecord> latest(int limit);
 }
