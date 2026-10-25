@@ -38,7 +38,7 @@
             toggle_key, enabled, created_at, updated_at
         )
         VALUES (
-            #{id}, #{ruleId}, #{category}, #{name}, #{severity}, NULL, NULL, #{title}, #{description},
+            #{id}, #{ruleId}, #{category}, #{name}, #{severity}, NULL, #{action}, #{title}, #{description},
             #{toggleKey}, #{enabled}, #{createdAt}, #{updatedAt}
         )
         ON DUPLICATE KEY UPDATE
@@ -51,6 +51,7 @@
     <update id="updateByRuleId" parameterType="cn.qx.infrastructure.dao.po.SecurityBuiltinRulePO">
         UPDATE security_builtin_rules
         SET severity = #{severity},
+            action = #{action},
             title = #{title},
             description = #{description},
             enabled = #{enabled},

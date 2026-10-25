@@ -2,6 +2,7 @@ package cn.qx.domain.security.service.blacklist;
 
 import cn.qx.domain.security.model.valobj.ScanFinding;
 import cn.qx.domain.security.model.valobj.ScanText;
+import cn.qx.domain.security.model.valobj.FindingAction;
 import cn.qx.domain.security.service.rule.CustomRuleMeta;
 import cn.qx.domain.security.service.rule.ISecurityRuleCacheService;
 import cn.qx.domain.security.service.scanner.EvidenceMasker;
@@ -57,6 +58,7 @@ public class CustomRuleMatcherServiceImpl implements ICustomRuleMatcherService {
             }
             int end = Math.min(text.text().length(), index + pattern.length());
             String evidence = text.text().substring(index, end);
+            FindingAction configuredAction = FindingAction.fromRuleAction(rule.getAction());
             findings.add(ScanFinding.builder()
                     .ruleId("custom.blacklist." + rule.getCategory())
                     .scanner("custom")
@@ -68,7 +70,8 @@ public class CustomRuleMatcherServiceImpl implements ICustomRuleMatcherService {
                     .evidenceMasked(EvidenceMasker.mask(evidence))
                     .location(text.locationAt(index, end))
                     .message("Custom blacklist pattern matched")
-                    .redactable(false)
+                    .redactable(configuredAction == FindingAction.REDACT)
+                    .action(configuredAction)
                     .build());
         }
         return findings;

@@ -1,7 +1,6 @@
 package cn.qx.domain.security.service;
 
 import cn.qx.domain.security.model.valobj.FindingAction;
-import cn.qx.domain.security.model.valobj.RiskLevel;
 import cn.qx.domain.security.model.valobj.SecurityAction;
 import cn.qx.domain.security.model.valobj.SecurityMode;
 import cn.qx.domain.security.model.valobj.SecuritySeverity;
@@ -13,7 +12,10 @@ import org.junit.runner.RunWith;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
 
+import java.util.List;
+
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
 /**
  * 安全策略矩阵测试。
@@ -102,18 +104,30 @@ public class SecurityPolicyTest {
     }
 
     @Test
-    public void global_action_uses_combined_risk_level() {
+    public void global_action_uses_strictest_finding_action() {
         assertEquals(SecurityAction.BLOCK,
-                securityPolicy.globalAction(RiskLevel.HIGH, false, SecurityMode.BLOCK, false));
+                securityPolicy.globalAction(List.of(
+                        FindingAction.ALLOW, FindingAction.WARN,
+                        FindingAction.REDACT, FindingAction.BLOCK)));
         assertEquals(SecurityAction.SANITIZE,
-                securityPolicy.globalAction(RiskLevel.HIGH, true, SecurityMode.REDACT, false));
+                securityPolicy.globalAction(List.of(
+                        FindingAction.ALLOW, FindingAction.WARN, FindingAction.REDACT)));
         assertEquals(SecurityAction.ALLOW,
-                securityPolicy.globalAction(RiskLevel.HIGH, false, SecurityMode.REDACT, false));
-        assertEquals(SecurityAction.BLOCK,
-                securityPolicy.globalAction(RiskLevel.CRITICAL, true, SecurityMode.AUDIT, true));
+                securityPolicy.globalAction(List.of(FindingAction.ALLOW, FindingAction.WARN)));
+        assertEquals(SecurityAction.ALLOW, securityPolicy.globalAction(List.of()));
         log.info("策略矩阵: {}", JSON.toJSONString(new Object[]{
                 securityPolicy.actionFor(SecuritySeverity.CRITICAL, true, SecurityMode.WARN, false),
-                securityPolicy.globalAction(RiskLevel.HIGH, true, SecurityMode.REDACT, false)
+                securityPolicy.globalAction(List.of(FindingAction.REDACT))
         }));
+    }
+
+    @Test
+    public void rule_action_parser_only_accepts_overrides() {
+        assertEquals(FindingAction.BLOCK, FindingAction.fromRuleAction("BLOCK"));
+        assertEquals(FindingAction.REDACT, FindingAction.fromRuleAction(" redact "));
+        assertEquals(FindingAction.WARN, FindingAction.fromRuleAction("warn"));
+        assertNull("allow 不是规则级覆盖动作", FindingAction.fromRuleAction("allow"));
+        assertNull("未知动作应回落全局策略", FindingAction.fromRuleAction("unknown"));
+        assertNull(FindingAction.fromRuleAction(""));
     }
 }

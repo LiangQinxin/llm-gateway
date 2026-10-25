@@ -26,7 +26,7 @@ public class SecurityCustomRulePO {
     private String pattern;
     /** severity 列 */
     private String severity;
-    /** action 列：管理提示动作 */
+    /** action 列：规则级动作(warn/redact/block)，NULL=跟随全局策略 */
     private String action;
     /** enabled 列 */
     private Integer enabled;

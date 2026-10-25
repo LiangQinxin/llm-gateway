@@ -135,20 +135,18 @@ public class SecurityScannerImpl implements ISecurityScanner {
             findings = new ArrayList<>(findings.subList(0, MAX_FINDINGS));
         }
 
-        List<ScanFinding> deduplicated = deduplicate(findings);
-        SecurityRiskScorer.RiskAssessment assessment = riskScorer.score(deduplicated);
-        List<ScanFinding> actioned = applyActions(deduplicated, settings);
-        boolean anyRedact = actioned.stream()
-                .anyMatch(finding -> finding.getAction() == FindingAction.REDACT);
+        List<ScanFinding> actioned = applyActions(findings, settings);
+        List<ScanFinding> selected = deduplicate(actioned);
+        SecurityRiskScorer.RiskAssessment assessment = riskScorer.score(selected);
         SecurityAction finalAction = securityPolicy.globalAction(
-                assessment.level(), anyRedact, settings.getMode(), settings.isBlockCritical());
-        String summary = summary(actioned, assessment, state, findingsTruncated);
+                selected.stream().map(ScanFinding::getAction).toList());
+        String summary = summary(selected, assessment, state, findingsTruncated);
         log.info("安全扫描完成: phase={}, score={}, level={}, action={}, findings={}, truncated={}, summary={}",
                 phase, assessment.score(), assessment.level(), finalAction,
-                actioned.size(), findingsTruncated, summary);
+                selected.size(), findingsTruncated, summary);
         return AuditResult.builder()
                 .phase(phase)
-                .findings(List.copyOf(actioned))
+                .findings(List.copyOf(selected))
                 .score(assessment.score())
                 .level(assessment.level())
                 .finalAction(finalAction)
@@ -166,9 +164,15 @@ public class SecurityScannerImpl implements ISecurityScanner {
         if (!ruleCache.isRuleEnabled(metadata, settings)) {
             return;
         }
-        findings.add(finding.toBuilder()
-                .severity(ruleCache.effectiveSeverity(finding, metadata))
-                .build());
+        FindingAction configuredAction = metadata == null
+                ? null : FindingAction.fromRuleAction(metadata.getAction());
+        var builder = finding.toBuilder()
+                .severity(ruleCache.effectiveSeverity(finding, metadata));
+        if (configuredAction != null) {
+            builder.action(configuredAction)
+                    .redactable(configuredAction == FindingAction.REDACT);
+        }
+        findings.add(builder.build());
     }
 
     private static void traverse(Object node,
@@ -232,20 +236,43 @@ public class SecurityScannerImpl implements ISecurityScanner {
             String key = finding.getScanner() + "\u0000"
                     + finding.getEvidence() + "\u0000" + finding.getLocation();
             ScanFinding existing = selected.get(key);
-            if (existing == null || finding.getSeverity().ordinal() > existing.getSeverity().ordinal()) {
+            if (existing == null || isStricter(finding, existing)) {
                 selected.put(key, finding);
             }
         }
         return new ArrayList<>(selected.values());
     }
 
+    private static boolean isStricter(ScanFinding candidate, ScanFinding current) {
+        int candidateAction = actionRank(candidate.getAction());
+        int currentAction = actionRank(current.getAction());
+        if (candidateAction != currentAction) {
+            return candidateAction > currentAction;
+        }
+        return candidate.getSeverity().ordinal() > current.getSeverity().ordinal();
+    }
+
+    private static int actionRank(FindingAction action) {
+        if (action == null) {
+            return -1;
+        }
+        return switch (action) {
+            case ALLOW -> 0;
+            case WARN -> 1;
+            case REDACT -> 2;
+            case BLOCK -> 3;
+        };
+    }
+
     private List<ScanFinding> applyActions(List<ScanFinding> findings, ScanSettings settings) {
         return findings.stream()
-                .map(finding -> finding.toBuilder()
-                        .action(securityPolicy.actionFor(
-                                finding.getSeverity(), finding.isRedactable(),
-                                settings.getMode(), settings.isBlockCritical()))
-                        .build())
+                .map(finding -> finding.getAction() != null
+                        ? finding
+                        : finding.toBuilder()
+                                .action(securityPolicy.actionFor(
+                                        finding.getSeverity(), finding.isRedactable(),
+                                        settings.getMode(), settings.isBlockCritical()))
+                                .build())
                 .toList();
     }
 

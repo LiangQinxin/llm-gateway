@@ -18,7 +18,7 @@ public class CustomRuleRequest {
     private String pattern;
     /** 风险严重度（自定义规则必填） */
     private String severity;
-    /** 命中动作（warn|redact|block） */
+    /** 命中动作（空=跟随全局，warn|redact|block=覆盖全局） */
     private String action;
     /** 是否启用（null=默认启用） */
     private Boolean enabled;

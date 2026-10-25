@@ -35,7 +35,7 @@ function pgSecurity(){
           <div style="min-width:0"><span class="badge badge-blue">${esc((r.ruleType||r.type)+' · '+(r.category||''))}</span><span style="margin-left:8px;font-size:13px;font-weight:500">${esc(r.name||r.pattern)}</span></div>
           <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
             <span class="badge ${r.severity==='CRITICAL'?'badge-red':r.severity==='HIGH'?'badge-amber':'badge-slate'}">${esc(r.severity)}</span>
-            <span class="badge badge-slate">${esc(r.action||'warn')}</span>
+            <span class="badge badge-slate">${esc(r.action||'跟随全局')}</span>
             <button class="btn btn-danger btn-sm btn-icon" onclick="confirmDel('规则','${esc(r.name||r.pattern)}',()=>delCustomRule('${r.id}'))" title="删除">${I.trash}</button>
           </div>
         </div>`).join(''):emptyState('暂无自定义规则','点击右上角添加')}
@@ -44,14 +44,15 @@ function pgSecurity(){
   </div>
   <div class="surface" style="margin-bottom:16px;overflow:hidden">
     <div style="padding:14px 16px;border-bottom:1px solid var(--border);font-weight:700;font-size:13px;background:var(--slate-l);display:flex;align-items:center;gap:8px">内置规则 <span class="badge badge-slate">${builtinRules.length}</span></div>
-    <div class="table-wrap"><table class="table"><thead><tr><th>规则名称</th><th>类别</th><th>严重度</th><th>状态</th><th>操作</th></tr></thead><tbody>
+    <div class="table-wrap"><table class="table"><thead><tr><th>规则名称</th><th>类别</th><th>严重度</th><th>动作</th><th>状态</th><th>操作</th></tr></thead><tbody>
     ${builtinRules.length?builtinRules.map(r=>`<tr>
       <td><div style="font-weight:600">${esc(r.name||r.ruleName)}</div>${r.description?`<div style="font-size:12px;color:var(--muted-foreground);margin-top:2px;max-width:380px">${esc(r.description)}</div>`:''}</td>
       <td><span class="badge badge-slate">${esc(r.category||r.type)}</span></td>
       <td><span class="badge ${r.severity==='CRITICAL'?'badge-red':r.severity==='HIGH'?'badge-amber':r.severity==='MEDIUM'?'badge-blue':'badge-slate'}">${esc(r.severity)}</span></td>
+      <td><span class="badge badge-slate">${esc(r.action||'跟随全局')}</span></td>
       <td><div class="switch ${r.enabled?'on':''}" onclick="toggleBuiltinRule('${r.ruleId||r.id}',${!r.enabled})" title="${r.enabled?'点击禁用':'点击启用'}"><div class="switch-knob"></div></div></td>
       <td><div class="row-actions"><button class="btn btn-secondary btn-sm btn-icon" onclick="showBuiltinRuleModal('${r.ruleId||r.id}')" title="编辑">${I.edit}</button></div></td>
-    </tr>`).join(''):emptyRow(5,'暂无内置规则','')}
+    </tr>`).join(''):emptyRow(6,'暂无内置规则','')}
     </tbody></table></div>
   </div>
   <div class="surface" style="overflow:hidden">
@@ -93,6 +94,8 @@ function showBuiltinRuleModal(ruleId){
   state._brEnabled=r.enabled;
   const sev=(r.severity||'HIGH').toUpperCase();
   const sevOpts=[['CRITICAL','严重'],['HIGH','高'],['MEDIUM','中'],['LOW','低']];
+  const action=(r.action||'').toLowerCase();
+  const actionOpts=[['','跟随全局策略'],['warn','warn 警告'],['redact','redact 脱敏'],['block','block 阻断']];
   showModal(`<div class="modal-header"><div class="modal-title">编辑内置规则</div></div>
   <div class="modal-body">
   <div class="input-group"><label class="input-label">规则名称</label><input class="input" id="br-title" value="${esc(r.name||r.title||'')}"></div>
@@ -101,6 +104,7 @@ function showBuiltinRuleModal(ruleId){
     <div class="input-group"><label class="input-label">严重度</label><select class="input" id="br-severity">${sevOpts.map(([v,l])=>`<option value="${v}" ${sev===v?'selected':''}>${l}</option>`).join('')}</select></div>
     <div class="input-group"><label class="input-label">状态</label><div style="display:flex;align-items:center;gap:10px;padding:8px 0"><div class="switch ${r.enabled?'on':''}" id="br-switch" onclick="toggleBrEnabled()"><div class="switch-knob"></div></div><span id="br-status" style="font-size:12px;font-weight:600;color:${r.enabled?'var(--green)':'var(--border-strong)'}">${r.enabled?'已启用':'已禁用'}</span></div></div>
   </div>
+  <div class="input-group"><label class="input-label">命中动作</label><select class="input" id="br-action">${actionOpts.map(([v,l])=>`<option value="${v}" ${action===v?'selected':''}>${l}</option>`).join('')}</select><div class="input-hint">选择具体动作会覆盖全局策略；跟随全局时按严重度与模式矩阵处置</div></div>
   <div class="input-group"><label class="input-label">检测内容</label><textarea class="input" id="br-desc" rows="4" style="height:auto;resize:vertical;font-family:'SF Mono',Monaco,monospace;font-size:12px;line-height:1.6">${esc(r.description||'')}</textarea><div class="input-hint">描述该规则拦截/检测的对象</div></div>
   </div>
   <div class="modal-actions"><button class="btn btn-secondary" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="saveBuiltinRule('${esc(r.ruleId||r.id)}')">保存</button></div>`);
@@ -109,7 +113,7 @@ function showBuiltinRuleModal(ruleId){
 function toggleBrEnabled(){state._brEnabled=!state._brEnabled;const sw=document.getElementById('br-switch');const st=document.getElementById('br-status');if(sw){sw.classList.toggle('on',state._brEnabled);st.textContent=state._brEnabled?'已启用':'已禁用';st.style.color=state._brEnabled?'var(--green)':'var(--border-strong)';}}
 
 async function saveBuiltinRule(ruleId){
-  const body={title:val('br-title'),description:val('br-desc'),severity:val('br-severity'),enabled:state._brEnabled};
+  const body={title:val('br-title'),description:val('br-desc'),severity:val('br-severity'),action:val('br-action'),enabled:state._brEnabled};
   if(!body.title){toast('规则名称不能为空','error');return}
   const r=await api('/security/rules/builtin/'+encodeURIComponent(ruleId),{method:'PUT',body:JSON.stringify(body)});
   if(r.code==='0000'){toast('规则已保存');closeModal();loadSecurity()}else toast(r.info||'保存失败','error');
@@ -125,7 +129,7 @@ function showSecRuleModal(){
   <div class="input-group"><label class="input-label">匹配模式</label><input class="input" id="sr-pattern" placeholder="如：/etc/passwd" style="font-family:monospace"><div class="input-hint">子串匹配，非正则</div></div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
     <div class="input-group"><label class="input-label">严重度</label><select class="input" id="sr-severity"><option value="LOW">Low</option><option value="MEDIUM">Medium</option><option value="HIGH">High</option><option value="CRITICAL">Critical</option></select></div>
-    <div class="input-group"><label class="input-label">命中动作</label><select class="input" id="sr-action"><option value="warn">warn 警告</option><option value="redact">redact 脱敏</option><option value="block">block 阻断</option></select></div>
+    <div class="input-group"><label class="input-label">命中动作</label><select class="input" id="sr-action"><option value="">跟随全局策略</option><option value="warn">warn 警告</option><option value="redact">redact 脱敏</option><option value="block">block 阻断</option></select></div>
   </div>
   </div>
   <div class="modal-actions"><button class="btn btn-secondary" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="addCustomRule()">添加</button></div>`);

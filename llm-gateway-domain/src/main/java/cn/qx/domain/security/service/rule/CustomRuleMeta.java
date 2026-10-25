@@ -27,7 +27,7 @@ public class CustomRuleMeta {
     private String pattern;
     /** 命中后并入统一评分矩阵的严重度。 */
     private SecuritySeverity severity;
-    /** 管理提示动作，实际处置仍由统一评分矩阵决定 */
+    /** 规则级命中动作（warn/redact/block）；null 表示跟随全局 mode */
     private String action;
     /** 是否启用。 */
     private boolean enabled;

@@ -12,7 +12,7 @@ public class CustomRuleUpdateRequest {
     private String pattern;
     /** 新严重度（null=不改） */
     private String severity;
-    /** 新命中动作（null=不改） */
+    /** 新命中动作（null=不改，空串=跟随全局，warn|redact|block=覆盖全局） */
     private String action;
     /** 新描述（null=不改） */
     private String description;

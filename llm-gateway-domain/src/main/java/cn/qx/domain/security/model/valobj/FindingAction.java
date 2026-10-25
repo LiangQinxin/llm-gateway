@@ -23,4 +23,17 @@ public enum FindingAction {
     public String code() {
         return code;
     }
+
+    /** 解析规则级动作码；仅接受 warn/redact/block，空值、allow 或未知值返回 null。 */
+    public static FindingAction fromRuleAction(String code) {
+        if (code == null || code.isBlank()) {
+            return null;
+        }
+        for (FindingAction action : values()) {
+            if (action != ALLOW && action.code.equalsIgnoreCase(code.trim())) {
+                return action;
+            }
+        }
+        return null;
+    }
 }

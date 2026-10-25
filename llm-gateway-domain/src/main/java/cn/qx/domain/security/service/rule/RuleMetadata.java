@@ -25,6 +25,8 @@ public class RuleMetadata {
     private String name;
     /** 覆盖后的严重度 */
     private SecuritySeverity severity;
+    /** 规则级命中动作（warn/redact/block）；null 表示跟随全局 mode */
+    private String action;
     /** 人读标题 */
     private String title;
     /** 规则说明 */

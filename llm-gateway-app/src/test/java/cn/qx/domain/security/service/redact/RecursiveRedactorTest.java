@@ -1,5 +1,7 @@
 package cn.qx.domain.security.service.redact;
 
+import cn.qx.api.ISecurityRuleCase;
+import cn.qx.api.dto.security.CustomRuleRequest;
 import cn.qx.domain.security.model.valobj.ScanSettings;
 import cn.qx.domain.security.model.valobj.SecurityMode;
 import com.alibaba.fastjson2.JSON;
@@ -10,6 +12,8 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
+
+import java.util.UUID;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -27,6 +31,10 @@ public class RecursiveRedactorTest {
     /** 被测的递归脱敏器：断言转发前对 JSON 与正文中密钥的改写行为。 */
     @Resource
     private IRecursiveRedactorService recursiveRedactor;
+
+    /** 安全规则用例：动态创建自定义黑名单，验证脱敏器与扫描器共享规则缓存。 */
+    @Resource
+    private ISecurityRuleCase securityRuleCase;
 
     /**
      * 敏感键名的字符串值必须整值打码，非敏感字段保持不变。
@@ -113,5 +121,71 @@ public class RecursiveRedactorTest {
 
         assertNotNull(redacted);
         assertFalse(redacted.contains("superSecret123"));
+    }
+
+    /**
+     * 启用中的黑名单 pattern 大小写不敏感替换；短词整体替换，长词保留首尾掩码。
+     */
+    @Test
+    public void redacts_custom_blacklist_patterns_from_shared_rule_cache() {
+        String suffix = UUID.randomUUID().toString().replace("-", "");
+        String shortPattern = "short" + suffix.substring(0, 6);
+        String longPattern = "longcustommarker" + suffix.substring(0, 4);
+        String shortId = null;
+        String longId = null;
+        try {
+            shortId = securityRuleCase.createCustom(customBlacklist(
+                    "short-" + suffix, shortPattern)).getId();
+            longId = securityRuleCase.createCustom(customBlacklist(
+                    "long-" + suffix, longPattern)).getId();
+
+            String shortText = "before " + shortPattern.toUpperCase() + " after";
+            String longText = "before " + capitalize(longPattern) + " after";
+            String original = JSON.toJSONString(java.util.Map.of(
+                    "shortText", shortText, "longText", longText));
+            String redacted = recursiveRedactor.redact(
+                    original, ScanSettings.builder().mode(SecurityMode.REDACT).build());
+            log.info("自定义 pattern 脱敏: original={}, redacted={}", original, redacted);
+
+            JSONObject body = JSON.parseObject(redacted);
+            assertEquals("before [REDACTED] after", body.getString("shortText"));
+            assertEquals("before " + capitalize(longPattern).substring(0, 4)
+                            + "****" + capitalize(longPattern)
+                            .substring(capitalize(longPattern).length() - 4) + " after",
+                    body.getString("longText"));
+            assertFalse(redacted.contains(shortPattern));
+            assertFalse(redacted.contains(longPattern));
+
+            String invalidJson = "prefix " + longPattern.toUpperCase() + " suffix";
+            String fallback = recursiveRedactor.redact(
+                    invalidJson, ScanSettings.builder().mode(SecurityMode.REDACT).build());
+            log.info("自定义 pattern 非法 JSON 脱敏: {}", fallback);
+            assertFalse(fallback.contains(longPattern.toUpperCase()));
+            assertTrue(fallback.contains("****"));
+        } finally {
+            if (shortId != null) {
+                securityRuleCase.deleteCustom(shortId);
+            }
+            if (longId != null) {
+                securityRuleCase.deleteCustom(longId);
+            }
+        }
+    }
+
+    private static CustomRuleRequest customBlacklist(String name, String pattern) {
+        CustomRuleRequest request = new CustomRuleRequest();
+        request.setRuleType("blacklist");
+        request.setCategory("keyword");
+        request.setName(name);
+        request.setPattern(pattern);
+        request.setSeverity("high");
+        request.setAction("redact");
+        request.setEnabled(true);
+        request.setDescription("redactor custom pattern test");
+        return request;
+    }
+
+    private static String capitalize(String value) {
+        return Character.toUpperCase(value.charAt(0)) + value.substring(1);
     }
 }

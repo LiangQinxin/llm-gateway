@@ -26,7 +26,7 @@ public class SecurityBuiltinRulePO {
     private String severity;
     /** pattern 列：遗留列，不落值 */
     private String pattern;
-    /** action 列：遗留列，不落值 */
+    /** action 列：规则级动作(warn/redact/block)，NULL=跟随全局策略 */
     private String action;
     /** title 列 */
     private String title;

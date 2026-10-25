@@ -3,10 +3,13 @@ package cn.qx.domain.security.service;
 import cn.qx.api.ISecurityRuleCase;
 import cn.qx.api.dto.security.BuiltinRuleUpdateRequest;
 import cn.qx.api.dto.security.CustomRuleRequest;
+import cn.qx.api.dto.security.CustomRuleUpdateRequest;
 import cn.qx.domain.security.adapter.repository.IBuiltinRuleRepository;
 import cn.qx.domain.security.model.valobj.AuditResult;
+import cn.qx.domain.security.model.valobj.FindingAction;
 import cn.qx.domain.security.model.valobj.ScanRequest;
 import cn.qx.domain.security.model.valobj.ScanSettings;
+import cn.qx.domain.security.model.valobj.SecurityAction;
 import cn.qx.domain.security.model.valobj.SecurityMode;
 import cn.qx.domain.security.model.valobj.SecuritySeverity;
 import cn.qx.domain.security.service.rule.RuleMetadata;
@@ -83,6 +86,54 @@ public class SecurityRuleEngineTest {
         } finally {
             securityRuleCase.updateBuiltin(
                     original.getRuleId(), builtinRequest(original));
+        }
+    }
+
+    /**
+     * 内置规则 action 覆盖全局 mode 与 blockCritical；留空时回落到原矩阵。
+     */
+    @Test
+    public void builtin_rule_action_overrides_global_mode() {
+        RuleMetadata original = builtinRuleRepository.getByRuleId("credential_apikey_openai");
+        String secret = "sk-proj-abcdefghijklmnopqrstuvwx";
+        try {
+            securityRuleCase.updateBuiltin(original.getRuleId(),
+                    actionRequest(original, "block"));
+            AuditResult blocked = securityScanner.scan(ScanRequest.of(secret,
+                    ScanSettings.builder().mode(SecurityMode.WARN).path(false).build()));
+            log.info("内置规则 block 覆盖结果: {}", JSON.toJSONString(blocked));
+            assertFindingAction(blocked, "credential_apikey_openai", FindingAction.BLOCK, false);
+            assertEquals(SecurityAction.BLOCK, blocked.getFinalAction());
+
+            securityRuleCase.updateBuiltin(original.getRuleId(),
+                    actionRequest(original, "redact"));
+            AuditResult redacted = securityScanner.scan(ScanRequest.of(secret,
+                    ScanSettings.builder().mode(SecurityMode.AUDIT).path(false).build()));
+            log.info("内置规则 redact 覆盖结果: {}", JSON.toJSONString(redacted));
+            assertFindingAction(redacted, "credential_apikey_openai", FindingAction.REDACT, true);
+            assertEquals(SecurityAction.SANITIZE, redacted.getFinalAction());
+
+            securityRuleCase.updateBuiltin(original.getRuleId(),
+                    actionRequest(original, "warn"));
+            AuditResult warned = securityScanner.scan(ScanRequest.of(secret,
+                    ScanSettings.builder()
+                            .mode(SecurityMode.BLOCK)
+                            .blockCritical(true)
+                            .path(false)
+                            .build()));
+            log.info("内置规则 warn 覆盖结果: {}", JSON.toJSONString(warned));
+            assertFindingAction(warned, "credential_apikey_openai", FindingAction.WARN, false);
+            assertEquals(SecurityAction.ALLOW, warned.getFinalAction());
+
+            BuiltinRuleUpdateRequest blank = actionRequest(original, "");
+            securityRuleCase.updateBuiltin(original.getRuleId(), blank);
+            AuditResult fallback = securityScanner.scan(ScanRequest.of(secret,
+                    ScanSettings.builder().mode(SecurityMode.WARN).path(false).build()));
+            log.info("内置规则 action 留空回落矩阵: {}", JSON.toJSONString(fallback));
+            assertFindingAction(fallback, "credential_apikey_openai", FindingAction.WARN, true);
+            assertEquals(SecurityAction.ALLOW, fallback.getFinalAction());
+        } finally {
+            securityRuleCase.updateBuiltin(original.getRuleId(), builtinRequest(original));
         }
     }
 
@@ -173,6 +224,87 @@ public class SecurityRuleEngineTest {
         } finally {
             if (id != null) {
                 securityRuleCase.deleteCustom(id);
+            }
+        }
+    }
+
+    /**
+     * 自定义黑名单 action 同样覆盖全局 mode，并且修改后缓存立即生效。
+     */
+    @Test
+    public void custom_rule_action_overrides_global_mode_and_refreshes_cache() {
+        String id = null;
+        String marker = "action-marker-" + java.util.UUID.randomUUID();
+        try {
+            id = securityRuleCase.createCustom(
+                    customRequest("blacklist", "keyword", "action-blacklist", marker, "block"))
+                    .getId();
+
+            AuditResult blocked = scanCustom(marker, SecurityMode.AUDIT);
+            log.info("自定义规则 block 结果: {}", JSON.toJSONString(blocked));
+            assertFindingAction(blocked, "custom.blacklist.keyword", FindingAction.BLOCK, false);
+            assertEquals(SecurityAction.BLOCK, blocked.getFinalAction());
+
+            CustomRuleUpdateRequest update = new CustomRuleUpdateRequest();
+            update.setAction("redact");
+            securityRuleCase.updateCustom(id, update);
+            AuditResult redacted = scanCustom(marker, SecurityMode.AUDIT);
+            log.info("自定义规则 redact 结果: {}", JSON.toJSONString(redacted));
+            assertFindingAction(redacted, "custom.blacklist.keyword", FindingAction.REDACT, true);
+            assertEquals(SecurityAction.SANITIZE, redacted.getFinalAction());
+
+            update.setAction("warn");
+            securityRuleCase.updateCustom(id, update);
+            AuditResult warned = scanCustom(marker, SecurityMode.BLOCK);
+            log.info("自定义规则 warn 覆盖 block 模式结果: {}", JSON.toJSONString(warned));
+            assertFindingAction(warned, "custom.blacklist.keyword", FindingAction.WARN, false);
+            assertEquals(SecurityAction.ALLOW, warned.getFinalAction());
+
+            update.setAction("");
+            securityRuleCase.updateCustom(id, update);
+            AuditResult fallback = scanCustom(marker, SecurityMode.AUDIT);
+            log.info("自定义规则 action 留空结果: {}", JSON.toJSONString(fallback));
+            assertFindingAction(fallback, "custom.blacklist.keyword", FindingAction.ALLOW, false);
+            assertEquals(SecurityAction.ALLOW, fallback.getFinalAction());
+        } finally {
+            if (id != null) {
+                securityRuleCase.deleteCustom(id);
+            }
+        }
+    }
+
+    /**
+     * 同 scanner/证据/位置命中多条规则时，规则动作优先于严重度：低严重度 block 不被高严重度 warn 覆盖。
+     */
+    @Test
+    public void deduplication_prefers_stricter_rule_action() {
+        String suffix = java.util.UUID.randomUUID().toString().replace("-", "");
+        String pattern = "dedupe-marker-" + suffix;
+        String blockId = null;
+        String warnId = null;
+        try {
+            CustomRuleRequest block = customRequest(
+                    "blacklist", "keyword", "dedupe-block", pattern, "block");
+            block.setSeverity("low");
+            blockId = securityRuleCase.createCustom(block).getId();
+
+            CustomRuleRequest warn = customRequest(
+                    "blacklist", "keyword", "dedupe-warn", pattern, "warn");
+            warn.setSeverity("critical");
+            warnId = securityRuleCase.createCustom(warn).getId();
+
+            AuditResult result = scanCustom(pattern, SecurityMode.AUDIT);
+            log.info("同位置动作去重结果: {}", JSON.toJSONString(result));
+            assertTrue(result.getFindings().stream()
+                    .filter(finding -> "custom.blacklist.keyword".equals(finding.getRuleId()))
+                    .allMatch(finding -> finding.getAction() == FindingAction.BLOCK));
+            assertEquals(SecurityAction.BLOCK, result.getFinalAction());
+        } finally {
+            if (blockId != null) {
+                securityRuleCase.deleteCustom(blockId);
+            }
+            if (warnId != null) {
+                securityRuleCase.deleteCustom(warnId);
             }
         }
     }
@@ -272,6 +404,13 @@ public class SecurityRuleEngineTest {
         request.setEnabled(rule.isEnabled());
         request.setTitle(rule.getTitle());
         request.setDescription(rule.getDescription());
+        request.setAction(rule.getAction() == null ? "" : rule.getAction());
+        return request;
+    }
+
+    private static BuiltinRuleUpdateRequest actionRequest(RuleMetadata rule, String action) {
+        BuiltinRuleUpdateRequest request = builtinRequest(rule);
+        request.setAction(action);
         return request;
     }
 
@@ -279,15 +418,44 @@ public class SecurityRuleEngineTest {
                                                    String category,
                                                    String name,
                                                    String pattern) {
+        return customRequest(ruleType, category, name, pattern, "block");
+    }
+
+    private static CustomRuleRequest customRequest(String ruleType,
+                                                   String category,
+                                                   String name,
+                                                   String pattern,
+                                                   String action) {
         CustomRuleRequest request = new CustomRuleRequest();
         request.setRuleType(ruleType);
         request.setCategory(category);
         request.setName(name);
         request.setPattern(pattern);
         request.setSeverity("high");
-        request.setAction("block");
+        request.setAction(action);
         request.setEnabled(true);
         request.setDescription("test");
         return request;
+    }
+
+    private AuditResult scanCustom(String marker, SecurityMode mode) {
+        return securityScanner.scan(ScanRequest.of(
+                "{\"content\":\"" + marker + "\"}",
+                ScanSettings.builder()
+                        .mode(mode)
+                        .credential(false)
+                        .path(false)
+                        .build()));
+    }
+
+    private static void assertFindingAction(AuditResult result,
+                                            String ruleId,
+                                            FindingAction action,
+                                            boolean redactable) {
+        var finding = result.getFindings().stream()
+                .filter(item -> ruleId.equals(item.getRuleId()))
+                .findFirst().orElseThrow();
+        assertEquals(action, finding.getAction());
+        assertEquals(redactable, finding.isRedactable());
     }
 }

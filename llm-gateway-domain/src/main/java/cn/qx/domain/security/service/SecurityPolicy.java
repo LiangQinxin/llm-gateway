@@ -1,11 +1,12 @@
 package cn.qx.domain.security.service;
 
 import cn.qx.domain.security.model.valobj.FindingAction;
-import cn.qx.domain.security.model.valobj.RiskLevel;
 import cn.qx.domain.security.model.valobj.SecurityAction;
 import cn.qx.domain.security.model.valobj.SecurityMode;
 import cn.qx.domain.security.model.valobj.SecuritySeverity;
 import org.springframework.stereotype.Component;
+
+import java.util.Collection;
 
 /**
  * 安全策略矩阵与动作归一；对齐安全审计引擎 decide_action：
@@ -46,20 +47,16 @@ public class SecurityPolicy {
         };
     }
 
-    public SecurityAction globalAction(RiskLevel level,
-                                       boolean anyRedact,
-                                       SecurityMode mode,
-                                       boolean blockCritical) {
-        SecurityMode effectiveMode = mode == null ? SecurityMode.WARN : mode;
-        boolean blockByMode = effectiveMode == SecurityMode.BLOCK
-                && (level == RiskLevel.HIGH || level == RiskLevel.CRITICAL);
-        boolean blockByCritical = blockCritical && level == RiskLevel.CRITICAL;
-        if (blockByMode || blockByCritical) {
-            return SecurityAction.BLOCK;
+    public SecurityAction globalAction(Collection<FindingAction> findingActions) {
+        boolean redact = false;
+        if (findingActions != null) {
+            for (FindingAction action : findingActions) {
+                if (action == FindingAction.BLOCK) {
+                    return SecurityAction.BLOCK;
+                }
+                redact |= action == FindingAction.REDACT;
+            }
         }
-        if (effectiveMode == SecurityMode.REDACT && anyRedact) {
-            return SecurityAction.SANITIZE;
-        }
-        return SecurityAction.ALLOW;
+        return redact ? SecurityAction.SANITIZE : SecurityAction.ALLOW;
     }
 }

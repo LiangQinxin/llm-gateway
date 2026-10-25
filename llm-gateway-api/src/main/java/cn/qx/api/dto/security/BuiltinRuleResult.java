@@ -26,6 +26,8 @@ public class BuiltinRuleResult {
     private String name;
     /** 风险严重度 */
     private SecuritySeverity severity;
+    /** 规则级命中动作（warn/redact/block）；空=跟随全局 mode */
+    private String action;
     /** 规则标题 */
     private String title;
     /** 规则描述 */
@@ -46,6 +48,7 @@ public class BuiltinRuleResult {
                 .category(rule.getCategory())
                 .name(rule.getName())
                 .severity(rule.getSeverity())
+                .action(rule.getAction())
                 .title(rule.getTitle())
                 .description(rule.getDescription())
                 .toggleKey(rule.getToggleKey())

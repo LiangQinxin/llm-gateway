@@ -10,6 +10,8 @@ public class BuiltinRuleUpdateRequest {
 
     /** 新严重度（空=保持原值） */
     private String severity;
+    /** 新规则动作（null=保持原值，空串=清空并跟随全局 mode） */
+    private String action;
     /** 新启停（null=保持原值） */
     private Boolean enabled;
     /** 新标题（空=保持原值） */

@@ -40,7 +40,7 @@ public class SecurityRuleCase implements ISecurityRuleCase {
     /** 自定义规则允许类别集合（domain/tool/path/keyword） */
     private static final Set<String> CUSTOM_CATEGORIES =
             Set.of("domain", "tool", "path", "keyword");
-    private static final Set<String> CUSTOM_ACTIONS = Set.of("warn", "redact", "block");
+    private static final Set<String> RULE_ACTIONS = Set.of("warn", "redact", "block");
 
     private final Object customRuleCreateLock = new Object();
 
@@ -89,6 +89,9 @@ public class SecurityRuleCase implements ISecurityRuleCase {
                     "安全内置规则不存在: " + ruleId);
         }
         current.setSeverity(parseSeverity(request.getSeverity(), current.getSeverity()));
+        if (request.getAction() != null) {
+            current.setAction(normalizeAction(request.getAction()));
+        }
         current.setEnabled(request.getEnabled() == null
                 ? current.isEnabled() : request.getEnabled());
         current.setTitle(defaultIfBlank(request.getTitle(), current.getTitle()));
@@ -136,7 +139,7 @@ public class SecurityRuleCase implements ISecurityRuleCase {
         rule.setPattern(request.getPattern());
         rule.setSeverity(request.getSeverity() == null
                 ? null : parseSeverity(request.getSeverity(), null));
-        rule.setAction(defaultIfBlank(request.getAction(), "warn"));
+        rule.setAction(normalizeAction(request.getAction()));
         rule.setEnabled(request.getEnabled() == null || request.getEnabled());
         rule.setDescription(request.getDescription());
         validateCustom(rule);
@@ -174,7 +177,7 @@ public class SecurityRuleCase implements ISecurityRuleCase {
             current.setSeverity(parseSeverity(request.getSeverity(), current.getSeverity()));
         }
         if (request.getAction() != null) {
-            current.setAction(request.getAction());
+            current.setAction(normalizeAction(request.getAction()));
         }
         if (request.getDescription() != null) {
             current.setDescription(request.getDescription());
@@ -233,10 +236,21 @@ public class SecurityRuleCase implements ISecurityRuleCase {
         if (rule.getSeverity() == null) {
             throw illegal("severity 不能为空");
         }
-        if (rule.getAction() == null
-                || !CUSTOM_ACTIONS.contains(rule.getAction().toLowerCase())) {
-            throw illegal("action 只能是 warn/redact/block");
+        if (rule.getAction() != null
+                && !RULE_ACTIONS.contains(rule.getAction().toLowerCase())) {
+            throw illegal("action 只能是空值或 warn/redact/block");
         }
+    }
+
+    private static String normalizeAction(String action) {
+        if (isBlank(action)) {
+            return null;
+        }
+        String normalized = action.trim().toLowerCase();
+        if (!RULE_ACTIONS.contains(normalized)) {
+            throw illegal("action 只能是空值或 warn/redact/block");
+        }
+        return normalized;
     }
 
     private static SecuritySeverity requireSeverity(SecuritySeverity severity) {

@@ -141,7 +141,7 @@ ScanFinding 的风险类别标签，用于组合加分判断与归类：凭证�
 _Avoid_: 分类、tag（避免与审计域之外的概念混淆）
 
 **内置规则（BuiltinRule）**:
-应用播种的安全规则元数据（rule_id/category/severity/toggle_key/enabled，65 条逐条入库，rule_id 与子扫描器代码 id 一致）。只存"什么级别、开不开"，不存匹配模式——匹配逻辑仍在子扫描器代码（ADR-0014）。
+应用播种的安全规则元数据（rule_id/category/severity/action/toggle_key/enabled，65 条逐条入库，rule_id 与子扫描器代码 id 一致）。只存"什么级别、什么动作、开不开"，不存匹配模式——匹配逻辑仍在子扫描器代码（ADR-0014/0016）。
 _Avoid_: 规则表行、内置正则
 
 **自定义规则（CustomRule）**:
@@ -149,13 +149,13 @@ _Avoid_: 规则表行、内置正则
 _Avoid_: 自定义正则、rule entry
 
 **黑名单（Blacklist）**:
-自定义规则的一种：文本子串命中即产生 `category="custom"` 的 finding，severity 并入统一评分矩阵处置（不绕过 blockCritical 兜底）。
+自定义规则的一种：文本子串命中即产生 `category="custom"` 的 finding；规则级 action 非空时直接覆盖全局 mode/blockCritical，留空时按 severity × mode 矩阵处置（ADR-0016）。
 
 **白名单（Whitelist）**:
 自定义规则的一种：按类别映射豁免内置检测（domain→network、path→file、keyword→credential、tool→tool），不放宽到整段文本全豁免（防一条 path 白名单意外放掉凭证检测）。
 
 **递归脱敏（RecursiveRedactor）**:
-转发前对请求体做结构化 JSON 递归改写的脱敏器：敏感键名整值打码（键名级）、文本内密钥前缀按词打码（字符串级）、PEM 私钥整块替换；非法 JSON 降级原文正则兜底。maskString 保留前 4 后 4（`sk-1234…` → `sk-1****cdef`），比审计证据打码更彻底。
+转发前对请求体做结构化 JSON 递归改写的脱敏器：敏感键名整值打码（键名级）、文本内密钥前缀按词打码（字符串级）、PEM 私钥整块替换、启用中的自定义黑名单 pattern 替换；非法 JSON 降级原文正则兜底。maskString 保留前 4 后 4（`sk-1234…` → `sk-1****cdef`），自定义短词（<12 字符）整体替换为 `[REDACTED]`，比审计证据打码更彻底。
 _Avoid_: 脱敏器、sanitizer（避免与既有 MessageSanitizer 混淆）
 
 **双层开关（toggle_key）**:

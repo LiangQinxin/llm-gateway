@@ -20,7 +20,7 @@ public interface ISecurityRuleCase {
     /** 查询内置规则详情，不存在抛 NOT_FOUND。 */
     BuiltinRuleResult getBuiltin(String ruleId);
 
-    /** 更新内置规则可变字段（严重度/启停/标题/描述），写后刷新规则缓存。 */
+    /** 更新内置规则可变字段（严重度/动作/启停/标题/描述），写后刷新规则缓存。 */
     BuiltinRuleResult updateBuiltin(String ruleId, BuiltinRuleUpdateRequest request);
 
     /** 清空内置规则表并按出厂目录重新播种，恢复默认配置。 */

@@ -21,7 +21,7 @@ public interface SecurityBuiltinRuleMapper {
     /** 幂等插入：rule_id 已存在时不更新任何字段（ON DUPLICATE KEY UPDATE 自赋），返回新增行数。 */
     int insertIfAbsent(SecurityBuiltinRulePO rule);
 
-    /** 按 rule_id 更新 severity/title/description/enabled/updated_at（不动 category/pattern/action），返回影响行数。 */
+    /** 按 rule_id 更新 severity/action/title/description/enabled/updated_at（不动 category/pattern），返回影响行数。 */
     int updateByRuleId(SecurityBuiltinRulePO rule);
 
     /** 按 rule_id 删除内置规则，返回影响行数。 */
