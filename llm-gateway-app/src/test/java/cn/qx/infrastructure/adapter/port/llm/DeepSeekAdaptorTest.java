@@ -40,7 +40,7 @@ public class DeepSeekAdaptorTest {
     private static final String BASE_URL = "http://127.0.0.1:8777/v1";
 
     /** 上游 API 密钥 */
-    private static final String API_KEY = "sk-waliapi-04dc74ce989d458e848a2c1616bf5611";
+    private static final String API_KEY = "sk-test-04dc74ce989d458e848a2c1616bf5611";
 
     /** 上游模型名 */
     private static final String MODEL = "deepseek-flash";

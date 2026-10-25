@@ -97,7 +97,7 @@ function showAgentModal(id){
   <div class="modal-body">
   <div class="input-group"><label class="input-label">Agent 名称</label><input class="input" id="ag-name" value="${a?esc(a.agentName||cfg.name||''):''}" placeholder="如：代码助手"></div>
   <div class="input-group"><label class="input-label">Agent ID</label><input class="input" id="ag-id" value="${a?esc(a.agentId||a.id):''}" placeholder="如：code-assistant" ${a?'readonly':''}><div class="input-hint">唯一标识，创建后不可修改</div></div>
-  <div class="input-group"><label class="input-label">应用名称</label><input class="input" id="ag-app" value="${a?esc(a.appName||'waliapi'):''}" placeholder="如：waliapi"></div>
+  <div class="input-group"><label class="input-label">应用名称</label><input class="input" id="ag-app" value="${a?esc(a.appName||'llm-gateway'):''}" placeholder="如：llm-gateway"></div>
   <div class="input-group"><label class="input-label">绑定模型</label>${channelModels.length?`<select class="input" id="ag-model">${channelModels.map(m=>`<option value="${esc(m)}" ${cfg.model===m?'selected':''}>${esc(m)}</option>`).join('')}</select><div class="input-hint">从已配置的渠道中选择模型</div>`:`<input class="input" id="ag-model" value="${esc(cfg.model||'')}" placeholder="如：gpt-4o"><div class="input-hint">手动输入模型名称</div>`}</div>
   <div class="input-group"><label class="input-label">描述</label><input class="input" id="ag-desc" value="${a?esc(a.agentDesc||cfg.description||''):''}" placeholder="简短描述 Agent 的用途"></div>
   <div class="input-group"><label class="input-label">系统提示词</label><textarea class="input" id="ag-prompt" rows="5" placeholder="你是一个专业的代码助手，擅长...">${esc(cfg.instruction||'')}</textarea><div class="input-hint">定义 Agent 的角色和行为，会作为 system message 注入对话</div></div>
@@ -106,7 +106,7 @@ function showAgentModal(id){
 }
 
 async function saveAgent(id){
-  const name=val('ag-name'),agentId=val('ag-id'),appName=val('ag-app')||'waliapi';
+  const name=val('ag-name'),agentId=val('ag-id'),appName=val('ag-app')||'llm-gateway';
   const model=val('ag-model')||'gpt-4o',desc=val('ag-desc'),instruction=val('ag-prompt');
   if(!name){toast('请输入 Agent 名称','error');return}
   if(!agentId){toast('请输入 Agent ID','error');return}

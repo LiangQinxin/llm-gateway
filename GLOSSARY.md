@@ -1,6 +1,6 @@
 # llm-gateway
 
-Java 版 LLM 网关，承接 Rust/Tauri 原项目的功能面：渠道、密钥、转发主链路、安全扫描、知识库 RAG、wiki、MCP、auth_provider、语义缓存、OTLP、健康探针、审计日志。采用六边形分层（trigger→case→domain←infrastructure）+ 用例编排，对齐 llm-api 既有惯例。
+Java 版 LLM 网关，功能面覆盖：渠道、密钥、转发主链路、安全扫描、知识库 RAG、wiki、MCP、auth_provider、语义缓存、OTLP、健康探针、审计日志。采用六边形分层（trigger→case→domain←infrastructure）+ 用例编排，对齐 llm-api 既有惯例。
 
 ## Language
 
@@ -13,7 +13,7 @@ _Avoid_: upstream、provider、上游渠道
 _Avoid_: token、API 凭证、api_key（列名保留）
 
 **RequestLog（请求日志）**:
-数据面每次转发请求落一条的不可变审计记录（全量留痕，ADR-0015；唯一例外=全库零启用渠道 503 不记），seq 自增保证顺序，只增不改。请求体落**脱敏后转发体**（敏感信息不进库，参考 WaLiAPI 贯穿式脱敏）；非流式响应落同构 `response_choices`，流式由旁路累积、终止时重建；含安全审计字段（risk_level/risk_score/security_action 等）与用量/耗时。
+数据面每次转发请求落一条的不可变审计记录（全量留痕，ADR-0015；唯一例外=全库零启用渠道 503 不记），seq 自增保证顺序，只增不改。请求体落**脱敏后转发体**（敏感信息不进库，脱敏贯穿全链路）；非流式响应落同构 `response_choices`，流式由旁路累积、终止时重建；含安全审计字段（risk_level/risk_score/security_action 等）与用量/耗时。
 _Avoid_: audit row、log entry
 
 **静默化（Silent Logging）**:
@@ -21,7 +21,7 @@ _Avoid_: audit row、log entry
 _Avoid_: 吞异常、失败即中断
 
 **日志保留档（log-policy）**:
-落库前正文裁剪档位（detailed/brief/basic，参考 WaLiAPI 审计策略，ADR-0015）：detailed 原样保存；brief 请求 messages 只留最新 3 条；basic 正文不落库。只裁剪 requestBody/responseChoices，不影响索引字段与用量统计；裁剪失败回退原样（宁缺勿错）。
+落库前正文裁剪档位（detailed/brief/basic，ADR-0015）：detailed 原样保存；brief 请求 messages 只留最新 3 条；basic 正文不落库。只裁剪 requestBody/responseChoices，不影响索引字段与用量统计；裁剪失败回退原样（宁缺勿错）。
 _Avoid_: 日志级别（log level 指日志框架级别）
 
 **Proxy 域**:

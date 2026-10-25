@@ -1,6 +1,6 @@
 // 主题管理
 function initTheme(){
-  const saved=localStorage.getItem('waliapi-theme')||'light';
+  const saved=localStorage.getItem('llm-gateway-theme')||'light';
   document.documentElement.setAttribute('data-theme',saved);
   updateThemeBtn();
 }
@@ -8,7 +8,7 @@ function toggleTheme(){
   const cur=document.documentElement.getAttribute('data-theme')||'light';
   const next=cur==='light'?'dark':'light';
   document.documentElement.setAttribute('data-theme',next);
-  localStorage.setItem('waliapi-theme',next);
+  localStorage.setItem('llm-gateway-theme',next);
   updateThemeBtn();
 }
 function updateThemeBtn(){

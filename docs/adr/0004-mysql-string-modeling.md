@@ -8,7 +8,7 @@
 - **schema 唯一来源**：`docs/mysql/sql/llm_gateway.sql`（基础版三表 15/11/29 列）。
 - **时间字段全 String**：ISO-8601 带偏移（`2026-08-08T15:33:34.850534+08:00`），工具类 `TimeUtils.now()` 生成；列是 varchar(32) 而非 DATETIME，且统一格式下字符串字典序=时间序，`idx_created_at` 与 `ORDER BY`/`BETWEEN` 直接可用，与 SQL 种子数据格式一致；
 - **ID 全 String**：`UUID.randomUUID()`（36 字符，varchar(64) 富余）；
-- **JSON 列建模**（models/config/model_mapping/allowed_models/allowed_channels/request_body/response_choices）：实体保持 String + 便捷解析方法（如 `Channel.activeModelMapping()` 对齐 Rust `active_model_mapping`）；持久化对象独立为 PO（`cn.qx.infrastructure.dao.po`，类名 `<表名>PO`，字段与库表列一一对应），repository 适配器负责实体 ↔ PO 转换（`BeanUtils.copyProperties`，自增键回填需同步回写实体），fastjson 解析仅发生在调用便捷方法时。
+- **JSON 列建模**（models/config/model_mapping/allowed_models/allowed_channels/request_body/response_choices）：实体保持 String + 便捷解析方法（如 `Channel.activeModelMapping()`）；持久化对象独立为 PO（`cn.qx.infrastructure.dao.po`，类名 `<表名>PO`，字段与库表列一一对应），repository 适配器负责实体 ↔ PO 转换（`BeanUtils.copyProperties`，自增键回填需同步回写实体），fastjson 解析仅发生在调用便捷方法时。
 
 ## Considered Options
 
