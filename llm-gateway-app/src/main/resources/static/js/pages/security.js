@@ -36,6 +36,7 @@ function pgSecurity(){
           <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
             <span class="badge ${r.severity==='CRITICAL'?'badge-red':r.severity==='HIGH'?'badge-amber':'badge-slate'}">${esc(r.severity)}</span>
             <span class="badge badge-slate">${esc(r.action||'跟随全局')}</span>
+            <button class="btn btn-secondary btn-sm btn-icon" onclick="showSecRuleModal('${r.id}')" title="编辑">${I.edit}</button>
             <button class="btn btn-danger btn-sm btn-icon" onclick="confirmDel('规则','${esc(r.name||r.pattern)}',()=>delCustomRule('${r.id}'))" title="删除">${I.trash}</button>
           </div>
         </div>`).join(''):emptyState('暂无自定义规则','点击右上角添加')}
@@ -118,8 +119,11 @@ async function saveBuiltinRule(ruleId){
   const r=await api('/security/rules/builtin/'+encodeURIComponent(ruleId),{method:'PUT',body:JSON.stringify(body)});
   if(r.code==='0000'){toast('规则已保存');closeModal();loadSecurity()}else toast(r.info||'保存失败','error');
 }
-function showSecRuleModal(){
-  showModal(`<div class="modal-header"><div class="modal-title">添加自定义规则</div></div>
+function showSecRuleModal(id){
+  const r=id?(state.data.security.custom||[]).find(x=>x.id===id):null;
+  if(id&&!r){toast('规则不存在','error');return}
+  if(!id){
+    showModal(`<div class="modal-header"><div class="modal-title">添加自定义规则</div></div>
   <div class="modal-body">
   <div class="input-group"><label class="input-label">规则名称</label><input class="input" id="sr-name" placeholder="如：敏感路径检测"></div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
@@ -133,12 +137,41 @@ function showSecRuleModal(){
   </div>
   </div>
   <div class="modal-actions"><button class="btn btn-secondary" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="addCustomRule()">添加</button></div>`);
+    return;
+  }
+  const typeVal=r.ruleType||r.type||'blacklist';
+  const catVal=r.category||'keyword';
+  const sev=(r.severity||'HIGH').toUpperCase();
+  const act=r.action||'';
+  const sevOpts=[['LOW','Low'],['MEDIUM','Medium'],['HIGH','High'],['CRITICAL','Critical']];
+  const actOpts=[['','跟随全局策略'],['warn','warn 警告'],['redact','redact 脱敏'],['block','block 阻断']];
+  showModal(`<div class="modal-header"><div class="modal-title">编辑自定义规则</div></div>
+  <div class="modal-body">
+  <div class="input-group"><label class="input-label">规则名称</label><input class="input" value="${esc(r.name||r.pattern||'')}" readonly style="background:var(--slate-l)"><div class="input-hint">名称由创建时确定，不可修改</div></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+    <div class="input-group"><label class="input-label">规则类型</label><input class="input" value="${esc(typeVal)}" readonly style="background:var(--slate-l)"></div>
+    <div class="input-group"><label class="input-label">规则类别</label><input class="input" value="${esc(catVal)}" readonly style="background:var(--slate-l)"></div>
+  </div>
+  <div class="input-group"><label class="input-label">匹配模式</label><input class="input" id="sr-pattern" value="${esc(r.pattern||'')}" style="font-family:monospace"><div class="input-hint">子串匹配，非正则</div></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+    <div class="input-group"><label class="input-label">严重度</label><select class="input" id="sr-severity">${sevOpts.map(([v,l])=>`<option value="${v}" ${sev===v?'selected':''}>${l}</option>`).join('')}</select></div>
+    <div class="input-group"><label class="input-label">命中动作</label><select class="input" id="sr-action">${actOpts.map(([v,l])=>`<option value="${v}" ${act===v?'selected':''}>${l}</option>`).join('')}</select></div>
+  </div>
+  <div class="input-group"><label class="input-label">描述</label><textarea class="input" id="sr-desc" rows="3" style="height:auto;resize:vertical">${esc(r.description||'')}</textarea></div>
+  </div>
+  <div class="modal-actions"><button class="btn btn-secondary" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="saveCustomRule('${r.id}')">保存</button></div>`);
 }
 async function addCustomRule(){
   const body={name:val('sr-name'),ruleType:val('sr-ruletype'),category:val('sr-category'),pattern:val('sr-pattern'),severity:val('sr-severity'),action:val('sr-action'),enabled:true};
   if(!body.name||!body.pattern){toast('请填写完整','error');return}
   const r=await api('/security/rules/custom',{method:'POST',body:JSON.stringify(body)});
   if(r.code==='0000'){toast('规则添加成功');closeModal();loadSecurity()}else toast(r.info||'添加失败','error');
+}
+async function saveCustomRule(id){
+  const body={pattern:val('sr-pattern'),severity:val('sr-severity'),action:val('sr-action'),description:val('sr-desc')};
+  if(!body.pattern){toast('匹配模式不能为空','error');return}
+  const r=await api('/security/rules/custom/'+encodeURIComponent(id),{method:'PUT',body:JSON.stringify(body)});
+  if(r.code==='0000'){toast('规则已保存');closeModal();loadSecurity()}else toast(r.info||'保存失败','error');
 }
 async function delCustomRule(id){const r=await api('/security/rules/custom/'+id,{method:'DELETE'});if(r.code==='0000'){toast('规则已删除');loadSecurity()}else toast(r.info||'删除失败','error')}
 function toggleSecPolicy(key){toast('安全策略切换需要后端支持','info')}
